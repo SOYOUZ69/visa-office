@@ -1,0 +1,147 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum ClientType {
+  INDIVIDUAL
+  FAMILY
+  GROUP
+  PHONE_CALL
+}
+
+enum ClientStatus {
+  NEW
+  IN_REVIEW
+  PENDING_DOCS
+  APPROVED
+  REJECTED
+}
+
+enum AttachmentType {
+  PASSPORT
+  VISA
+  PHOTO
+  DOCUMENT
+  OTHER
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum ServiceType {
+  TRANSLATION
+  DOSSIER_TREATMENT
+  ASSURANCE
+  VISA_APPLICATION
+  CONSULTATION
+  OTHER
+}
+
+// Models
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      UserRole @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Client {
+  id             String       @id @default(cuid())
+  clientType     ClientType
+  status         ClientStatus @default(NEW)
+  fullName       String
+  address        String
+  jobTitle       String?
+  passportNumber String?
+  email          String
+  destination    String
+  visaType       String
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // Relations
+  phoneNumbers  PhoneNumber[]
+  employers     Employer[]
+  attachments   Attachment[]
+  familyMembers FamilyMember[]
+  serviceItems  ServiceItem[]
+
+  @@map("clients")
+}
+
+model PhoneNumber {
+  id       String @id @default(cuid())
+  number   String
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("phone_numbers")
+}
+
+model Employer {
+  id       String @id @default(cuid())
+  name     String
+  position String?
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("employers")
+}
+
+model Attachment {
+  id        String         @id @default(cuid())
+  filename  String
+  originalName String
+  mimetype  String
+  size      Int
+  type      AttachmentType
+  path      String
+  clientId  String
+  client    Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt DateTime       @default(now())
+
+  @@map("attachments")
+}
+
+model FamilyMember {
+  id           String  @id @default(cuid())
+  fullName     String
+  relationship String
+  age          Int?
+  clientId     String
+  client       Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("family_members")
+}
+
+model ServiceItem {
+  id          String      @id @default(cuid())
+  clientId    String
+  client      Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  serviceType ServiceType
+  quantity    Int         @default(1)
+  unitPrice   Decimal     @db.Decimal(10,2)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("service_items")
+}

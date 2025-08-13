@@ -1,0 +1,107 @@
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { ClientsService } from './clients.service';
+import { CreateClientDto } from './dto/create-client.dto';
+import { UpdateClientDto } from './dto/update-client.dto';
+import { QueryClientDto } from './dto/query-client.dto';
+import { CreateFamilyMemberDto } from './dto/create-family-member.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/guards/roles.guard';
+import { UserRole } from '@prisma/client';
+
+@ApiTags('Clients')
+@Controller('api/v1/clients')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class ClientsController {
+  constructor(private readonly clientsService: ClientsService) {}
+
+  @Post()
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new client' })
+  @ApiResponse({ status: 201, description: 'Client created successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request - validation error' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - admin role required' })
+  create(@Body() createClientDto: CreateClientDto) {
+    return this.clientsService.create(createClientDto);
+  }
+
+  @Get()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all clients with pagination and filters' })
+  @ApiResponse({ status: 200, description: 'Clients retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'status', required: false, enum: ['NEW', 'IN_REVIEW', 'PENDING_DOCS', 'APPROVED', 'REJECTED'] })
+  @ApiQuery({ name: 'clientType', required: false, enum: ['INDIVIDUAL', 'FAMILY', 'GROUP', 'PHONE_CALL'] })
+  findAll(@Query() query: QueryClientDto) {
+    return this.clientsService.findAll(query);
+  }
+
+  @Get(':id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get a client by ID' })
+  @ApiResponse({ status: 200, description: 'Client retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Client not found' })
+  findOne(@Param('id') id: string) {
+    return this.clientsService.findOne(id);
+  }
+
+  @Patch(':id')
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update a client' })
+  @ApiResponse({ status: 200, description: 'Client updated successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request - validation error' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - admin role required' })
+  @ApiResponse({ status: 404, description: 'Client not found' })
+  update(@Param('id') id: string, @Body() updateClientDto: UpdateClientDto) {
+    return this.clientsService.update(id, updateClientDto);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a client' })
+  @ApiResponse({ status: 200, description: 'Client deleted successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - admin role required' })
+  @ApiResponse({ status: 404, description: 'Client not found' })
+  remove(@Param('id') id: string) {
+    return this.clientsService.remove(id);
+  }
+
+  @Post(':id/family-members')
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Add a family member to a client' })
+  @ApiResponse({ status: 201, description: 'Family member added successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request - validation error' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - admin role required' })
+  @ApiResponse({ status: 404, description: 'Client not found' })
+  addFamilyMember(
+    @Param('id') clientId: string,
+    @Body() createFamilyMemberDto: CreateFamilyMemberDto,
+  ) {
+    return this.clientsService.addFamilyMember(clientId, createFamilyMemberDto);
+  }
+
+  @Delete('family-members/:id')
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Remove a family member' })
+  @ApiResponse({ status: 200, description: 'Family member removed successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - admin role required' })
+  @ApiResponse({ status: 404, description: 'Family member not found' })
+  removeFamilyMember(@Param('id') id: string) {
+    return this.clientsService.removeFamilyMember(id);
+  }
+}
