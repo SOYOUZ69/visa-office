@@ -29,6 +29,9 @@ let MetaService = class MetaService {
     getAttachmentTypes() {
         return Object.values(client_1.AttachmentType);
     }
+    getServiceTypes() {
+        return ['Translation', 'Dossier Treatment', 'Assurance', 'Visa Application', 'Consultation', 'Other'];
+    }
 };
 exports.MetaService = MetaService;
 exports.MetaService = MetaService = __decorate([

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ClientStatus, AttachmentType } from '@prisma/client';
+import { ClientStatus, AttachmentType, ServiceType } from '@prisma/client';
 
 @Injectable()
 export class MetaService {
@@ -23,5 +23,9 @@ export class MetaService {
 
   getAttachmentTypes(): string[] {
     return Object.values(AttachmentType);
+  }
+
+  getServiceTypes(): string[] {
+    return ['Translation', 'Dossier Treatment', 'Assurance', 'Visa Application', 'Consultation', 'Other'];
   }
 }

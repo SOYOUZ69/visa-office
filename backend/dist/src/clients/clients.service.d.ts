@@ -32,9 +32,9 @@ export declare class ClientsService {
         familyMembers: {
             id: string;
             fullName: string;
-            clientId: string;
             relationship: string;
             age: number | null;
+            clientId: string;
         }[];
     } & {
         id: string;
@@ -78,9 +78,9 @@ export declare class ClientsService {
             familyMembers: {
                 id: string;
                 fullName: string;
-                clientId: string;
                 relationship: string;
                 age: number | null;
+                clientId: string;
             }[];
         } & {
             id: string;
@@ -130,9 +130,9 @@ export declare class ClientsService {
         familyMembers: {
             id: string;
             fullName: string;
-            clientId: string;
             relationship: string;
             age: number | null;
+            clientId: string;
         }[];
     } & {
         id: string;
@@ -175,9 +175,9 @@ export declare class ClientsService {
         familyMembers: {
             id: string;
             fullName: string;
-            clientId: string;
             relationship: string;
             age: number | null;
+            clientId: string;
         }[];
     } & {
         id: string;
@@ -200,9 +200,9 @@ export declare class ClientsService {
     addFamilyMember(clientId: string, createFamilyMemberDto: CreateFamilyMemberDto): Promise<{
         id: string;
         fullName: string;
-        clientId: string;
         relationship: string;
         age: number | null;
+        clientId: string;
     }>;
     removeFamilyMember(id: string): Promise<{
         message: string;

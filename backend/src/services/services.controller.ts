@@ -1,0 +1,116 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
+import { ServicesService } from './services.service';
+import { CreateServiceDto } from './dto/create-service.dto';
+import { CreateManyServicesDto } from './dto/create-many-services.dto';
+import { UpdateServiceDto } from './dto/update-service.dto';
+import { ServiceResponseDto } from './dto/service-response.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '@prisma/client';
+import { ServiceItem } from '@prisma/client';
+
+@ApiTags('Services')
+@ApiBearerAuth()
+@Controller('api/v1')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class ServicesController {
+  constructor(private readonly servicesService: ServicesService) {}
+
+  @Get('clients/:id/services')
+  @ApiOperation({ summary: 'Get all services for a client' })
+  @ApiParam({ name: 'id', description: 'Client ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of services for the client',
+    type: [ServiceResponseDto],
+  })
+  @ApiResponse({ status: 404, description: 'Client not found' })
+  @Roles(UserRole.ADMIN, UserRole.USER)
+  async getClientServices(@Param('id') clientId: string): Promise<ServiceItem[]> {
+    return this.servicesService.getClientServices(clientId);
+  }
+
+  @Post('clients/:id/service')
+  @ApiOperation({ summary: 'Create a single service for a client' })
+  @ApiParam({ name: 'id', description: 'Client ID' })
+  @ApiResponse({
+    status: 201,
+    description: 'Service created successfully',
+    type: ServiceResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid input data' })
+  @ApiResponse({ status: 404, description: 'Client not found' })
+  @Roles(UserRole.ADMIN)
+  async createService(
+    @Param('id') clientId: string,
+    @Body() createServiceDto: CreateServiceDto,
+  ): Promise<ServiceItem> {
+    return this.servicesService.createService(clientId, createServiceDto);
+  }
+
+  @Post('clients/:id/services')
+  @ApiOperation({ summary: 'Create multiple services for a client (bulk)' })
+  @ApiParam({ name: 'id', description: 'Client ID' })
+  @ApiResponse({
+    status: 201,
+    description: 'Services created successfully',
+    type: [ServiceResponseDto],
+  })
+  @ApiResponse({ status: 400, description: 'Invalid input data' })
+  @ApiResponse({ status: 404, description: 'Client not found' })
+  @Roles(UserRole.ADMIN)
+  async createManyServices(
+    @Param('id') clientId: string,
+    @Body() createManyServicesDto: CreateManyServicesDto,
+  ): Promise<ServiceItem[]> {
+    return this.servicesService.createManyServices(clientId, createManyServicesDto);
+  }
+
+  @Patch('services/:serviceId')
+  @ApiOperation({ summary: 'Update a service' })
+  @ApiParam({ name: 'serviceId', description: 'Service ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Service updated successfully',
+    type: ServiceResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid input data' })
+  @ApiResponse({ status: 404, description: 'Service not found' })
+  @Roles(UserRole.ADMIN)
+  async updateService(
+    @Param('serviceId') serviceId: string,
+    @Body() updateServiceDto: UpdateServiceDto,
+  ): Promise<ServiceItem> {
+    return this.servicesService.updateService(serviceId, updateServiceDto);
+  }
+
+  @Delete('services/:serviceId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a service' })
+  @ApiParam({ name: 'serviceId', description: 'Service ID' })
+  @ApiResponse({ status: 204, description: 'Service deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Service not found' })
+  @Roles(UserRole.ADMIN)
+  async deleteService(@Param('serviceId') serviceId: string): Promise<void> {
+    return this.servicesService.deleteService(serviceId);
+  }
+}

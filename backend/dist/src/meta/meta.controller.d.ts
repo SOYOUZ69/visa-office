@@ -5,4 +5,5 @@ export declare class MetaController {
     getClientStatuses(): string[];
     getVisaTypes(): string[];
     getAttachmentTypes(): string[];
+    getServiceTypes(): string[];
 }

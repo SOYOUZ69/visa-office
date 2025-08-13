@@ -27,4 +27,11 @@ export class MetaController {
   getAttachmentTypes() {
     return this.metaService.getAttachmentTypes();
   }
+
+  @Get('service-types')
+  @ApiOperation({ summary: 'Get available service types' })
+  @ApiResponse({ status: 200, description: 'List of service types' })
+  getServiceTypes() {
+    return this.metaService.getServiceTypes();
+  }
 }

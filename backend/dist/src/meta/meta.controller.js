@@ -27,6 +27,9 @@ let MetaController = class MetaController {
     getAttachmentTypes() {
         return this.metaService.getAttachmentTypes();
     }
+    getServiceTypes() {
+        return this.metaService.getServiceTypes();
+    }
 };
 exports.MetaController = MetaController;
 __decorate([
@@ -53,6 +56,14 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], MetaController.prototype, "getAttachmentTypes", null);
+__decorate([
+    (0, common_1.Get)('service-types'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get available service types' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'List of service types' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], MetaController.prototype, "getServiceTypes", null);
 exports.MetaController = MetaController = __decorate([
     (0, swagger_1.ApiTags)('Meta'),
     (0, common_1.Controller)('api/v1/meta'),

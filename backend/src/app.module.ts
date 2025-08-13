@@ -7,6 +7,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { MetaModule } from './meta/meta.module';
 import { ClientsModule } from './clients/clients.module';
 import { AttachmentsModule } from './attachments/attachments.module';
+import { ServicesModule } from './services/services.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { AttachmentsModule } from './attachments/attachments.module';
     MetaModule,
     ClientsModule,
     AttachmentsModule,
+    ServicesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
