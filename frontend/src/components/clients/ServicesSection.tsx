@@ -28,10 +28,11 @@ const ServicesFormSchema = z.object({
 type ServicesFormData = z.infer<typeof ServicesFormSchema>;
 
 interface ServicesSectionProps {
-  clientId: string;
+  clientId?: string;
+  isNewClient?: boolean;
 }
 
-export function ServicesSection({ clientId }: ServicesSectionProps) {
+export function ServicesSection({ clientId, isNewClient = false }: ServicesSectionProps) {
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [serviceTypes, setServiceTypes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,8 +54,10 @@ export function ServicesSection({ clientId }: ServicesSectionProps) {
   const isAdmin = user?.role === 'ADMIN';
 
   useEffect(() => {
-    loadData();
-  }, [clientId]);
+    if (clientId && !isNewClient) {
+      loadData();
+    }
+  }, [clientId, isNewClient]);
 
   const loadData = async () => {
     try {
@@ -159,7 +162,7 @@ export function ServicesSection({ clientId }: ServicesSectionProps) {
     }, 0).toFixed(2);
   };
 
-  if (loading) {
+  if (loading && !isNewClient) {
     return (
       <Card>
         <CardHeader>
@@ -167,6 +170,24 @@ export function ServicesSection({ clientId }: ServicesSectionProps) {
         </CardHeader>
         <CardContent>
           <div className="text-center py-4">Loading services...</div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isNewClient) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Services</CardTitle>
+          <CardDescription>
+            Services can be added after the client is created
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4 text-gray-500">
+            Please save the client first to add services
+          </div>
         </CardContent>
       </Card>
     );

@@ -14,6 +14,7 @@ import { clientsAPI, metaAPI, attachmentsAPI } from '@/lib/api';
 import { CreateClientData, Client } from '@/types';
 import { toast } from 'sonner';
 import { Plus, Trash2, Upload } from 'lucide-react';
+import { ServicesSection } from './ServicesSection';
 
 const createClientSchema = z.object({
   clientType: z.enum(['INDIVIDUAL', 'FAMILY', 'GROUP', 'PHONE_CALL']),
@@ -368,6 +369,13 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
           </p>
         </CardContent>
       </Card>
+
+      {/* Services Section */}
+      {client?.id ? (
+        <ServicesSection clientId={client.id} />
+      ) : (
+        <ServicesSection isNewClient={true} />
+      )}
 
       <div className="flex justify-end space-x-4">
         <Button
