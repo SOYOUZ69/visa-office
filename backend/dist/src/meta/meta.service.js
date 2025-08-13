@@ -30,7 +30,7 @@ let MetaService = class MetaService {
         return Object.values(client_1.AttachmentType);
     }
     getServiceTypes() {
-        return ['Translation', 'Dossier Treatment', 'Assurance', 'Visa Application', 'Consultation', 'Other'];
+        return Object.values(client_1.ServiceType);
     }
 };
 exports.MetaService = MetaService;

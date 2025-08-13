@@ -26,6 +26,6 @@ export class MetaService {
   }
 
   getServiceTypes(): string[] {
-    return ['Translation', 'Dossier Treatment', 'Assurance', 'Visa Application', 'Consultation', 'Other'];
+    return Object.values(ServiceType);
   }
 }

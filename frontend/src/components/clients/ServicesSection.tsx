@@ -95,9 +95,16 @@ export function ServicesSection({ clientId, isNewClient = false }: ServicesSecti
       return;
     }
 
+    // Ensure data types are correct
+    const payload = {
+      serviceType: serviceData.serviceType,
+      quantity: Number(serviceData.quantity),
+      unitPrice: Number(serviceData.unitPrice),
+    };
+
     try {
       setSaving(true);
-      await servicesAPI.createService(clientId, serviceData);
+      await servicesAPI.createService(clientId, payload);
       toast.success('Service saved successfully');
       remove(index);
       loadData(); // Refresh the list
@@ -124,9 +131,18 @@ export function ServicesSection({ clientId, isNewClient = false }: ServicesSecti
       return;
     }
 
+    // Ensure data types are correct for all services
+    const payload = {
+      items: formData.services.map(service => ({
+        serviceType: service.serviceType,
+        quantity: Number(service.quantity),
+        unitPrice: Number(service.unitPrice),
+      }))
+    };
+
     try {
       setSaving(true);
-      await servicesAPI.createManyServices(clientId, { items: formData.services });
+      await servicesAPI.createManyServices(clientId, payload);
       toast.success('Services saved successfully');
       form.reset({ services: [] });
       loadData(); // Refresh the list
