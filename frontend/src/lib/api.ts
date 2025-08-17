@@ -75,6 +75,14 @@ export const metaAPI = {
     const response = await api.get('/api/v1/meta/service-types');
     return response.data;
   },
+  getPaymentOptions: async () => {
+    const response = await api.get('/api/v1/meta/payment-options');
+    return response.data;
+  },
+  getPaymentModalities: async () => {
+    const response = await api.get('/api/v1/meta/payment-modalities');
+    return response.data;
+  },
 };
 
 // Clients API
@@ -159,6 +167,26 @@ export const servicesAPI = {
   },
   deleteService: async (serviceId: string) => {
     const response = await api.delete(`/api/v1/services/${serviceId}`);
+    return response.data;
+  },
+};
+
+// Payments API
+export const paymentsAPI = {
+  getClientPayments: async (clientId: string) => {
+    const response = await api.get(`/api/v1/clients/${clientId}/payments`);
+    return response.data;
+  },
+  createPayment: async (clientId: string, data: any) => {
+    const response = await api.post(`/api/v1/clients/${clientId}/payment`, data);
+    return response.data;
+  },
+  updatePayment: async (paymentId: string, data: any) => {
+    const response = await api.patch(`/api/v1/payments/${paymentId}`, data);
+    return response.data;
+  },
+  deletePayment: async (paymentId: string) => {
+    const response = await api.delete(`/api/v1/payments/${paymentId}`);
     return response.data;
   },
 };

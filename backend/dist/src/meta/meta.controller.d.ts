@@ -6,4 +6,6 @@ export declare class MetaController {
     getVisaTypes(): string[];
     getAttachmentTypes(): string[];
     getServiceTypes(): string[];
+    getPaymentOptions(): string[];
+    getPaymentModalities(): string[];
 }

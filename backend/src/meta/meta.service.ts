@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ClientStatus, AttachmentType, ServiceType } from '@prisma/client';
+import { ClientStatus, AttachmentType, ServiceType, PaymentOption, PaymentModality } from '@prisma/client';
 
 @Injectable()
 export class MetaService {
@@ -27,5 +27,13 @@ export class MetaService {
 
   getServiceTypes(): string[] {
     return Object.values(ServiceType);
+  }
+
+  getPaymentOptions(): string[] {
+    return Object.values(PaymentOption);
+  }
+
+  getPaymentModalities(): string[] {
+    return Object.values(PaymentModality);
   }
 }

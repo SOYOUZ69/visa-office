@@ -17,6 +17,7 @@ const meta_module_1 = require("./meta/meta.module");
 const clients_module_1 = require("./clients/clients.module");
 const attachments_module_1 = require("./attachments/attachments.module");
 const services_module_1 = require("./services/services.module");
+const payments_module_1 = require("./payments/payments.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -32,6 +33,7 @@ exports.AppModule = AppModule = __decorate([
             clients_module_1.ClientsModule,
             attachments_module_1.AttachmentsModule,
             services_module_1.ServicesModule,
+            payments_module_1.PaymentsModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

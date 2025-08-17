@@ -8,6 +8,7 @@ import { MetaModule } from './meta/meta.module';
 import { ClientsModule } from './clients/clients.module';
 import { AttachmentsModule } from './attachments/attachments.module';
 import { ServicesModule } from './services/services.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { ServicesModule } from './services/services.module';
     ClientsModule,
     AttachmentsModule,
     ServicesModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

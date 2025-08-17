@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { Download, Trash2, Upload, User, Phone, Building2, FileText, Users } from 'lucide-react';
 import { ServicesSection } from '@/components/clients/ServicesSection';
+import { PaymentSection } from '@/components/clients/PaymentSection';
 
 interface ClientDetailProps {
   clientId: string;
@@ -333,6 +334,9 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
 
       {/* Services Section */}
       <ServicesSection clientId={clientId} />
+
+      {/* Payment Section */}
+      <PaymentSection clientId={clientId} />
 
       {/* Timestamps */}
       <Card>

@@ -51,6 +51,19 @@ enum ServiceType {
   OTHER
 }
 
+enum PaymentOption {
+  BANK_TRANSFER
+  CHEQUE
+  POST
+  CASH
+}
+
+enum PaymentModality {
+  FULL_PAYMENT
+  SIXTY_FORTY
+  MILESTONE_PAYMENTS
+}
+
 // Models
 model User {
   id        String   @id @default(cuid())
@@ -84,6 +97,7 @@ model Client {
   attachments   Attachment[]
   familyMembers FamilyMember[]
   serviceItems  ServiceItem[]
+  payments      Payment[]
 
   @@map("clients")
 }
@@ -144,4 +158,35 @@ model ServiceItem {
   updatedAt   DateTime    @updatedAt
 
   @@map("service_items")
+}
+
+model Payment {
+  id              String          @id @default(cuid())
+  clientId        String
+  client          Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  totalAmount     Decimal         @db.Decimal(10,2)
+  paymentOption   PaymentOption
+  paymentModality PaymentModality
+  transferCode    String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  installments PaymentInstallment[]
+
+  @@map("payments")
+}
+
+model PaymentInstallment {
+  id          String   @id @default(cuid())
+  paymentId   String
+  payment     Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  description String
+  percentage  Decimal  @db.Decimal(5,2) // e.g., 60.00 for 60%
+  amount      Decimal  @db.Decimal(10,2)
+  dueDate     DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("payment_installments")
 }

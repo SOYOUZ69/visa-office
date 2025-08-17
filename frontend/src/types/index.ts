@@ -127,3 +127,52 @@ export interface UpdateServiceData {
   quantity?: number;
   unitPrice?: number;
 }
+
+// Payment Types
+export type PaymentOption = 'BANK_TRANSFER' | 'CHEQUE' | 'POST' | 'CASH';
+export type PaymentModality = 'FULL_PAYMENT' | 'SIXTY_FORTY' | 'MILESTONE_PAYMENTS';
+
+export interface PaymentInstallment {
+  id: string;
+  description: string;
+  percentage: string;
+  amount: string;
+  dueDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Payment {
+  id: string;
+  clientId: string;
+  totalAmount: string;
+  paymentOption: PaymentOption;
+  paymentModality: PaymentModality;
+  transferCode?: string;
+  installments: PaymentInstallment[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePaymentInstallmentData {
+  description: string;
+  percentage: number;
+  amount: number;
+  dueDate: string;
+}
+
+export interface CreatePaymentData {
+  totalAmount: number;
+  paymentOption: PaymentOption;
+  paymentModality: PaymentModality;
+  transferCode?: string;
+  installments: CreatePaymentInstallmentData[];
+}
+
+export interface UpdatePaymentData {
+  totalAmount?: number;
+  paymentOption?: PaymentOption;
+  paymentModality?: PaymentModality;
+  transferCode?: string;
+  installments?: CreatePaymentInstallmentData[];
+}

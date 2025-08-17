@@ -30,6 +30,12 @@ let MetaController = class MetaController {
     getServiceTypes() {
         return this.metaService.getServiceTypes();
     }
+    getPaymentOptions() {
+        return this.metaService.getPaymentOptions();
+    }
+    getPaymentModalities() {
+        return this.metaService.getPaymentModalities();
+    }
 };
 exports.MetaController = MetaController;
 __decorate([
@@ -64,6 +70,22 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], MetaController.prototype, "getServiceTypes", null);
+__decorate([
+    (0, common_1.Get)('payment-options'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get available payment options' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'List of payment options' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], MetaController.prototype, "getPaymentOptions", null);
+__decorate([
+    (0, common_1.Get)('payment-modalities'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get available payment modalities' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'List of payment modalities' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], MetaController.prototype, "getPaymentModalities", null);
 exports.MetaController = MetaController = __decorate([
     (0, swagger_1.ApiTags)('Meta'),
     (0, common_1.Controller)('api/v1/meta'),

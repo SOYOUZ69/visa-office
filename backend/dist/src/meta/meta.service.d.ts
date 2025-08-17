@@ -3,4 +3,6 @@ export declare class MetaService {
     getVisaTypes(): string[];
     getAttachmentTypes(): string[];
     getServiceTypes(): string[];
+    getPaymentOptions(): string[];
+    getPaymentModalities(): string[];
 }

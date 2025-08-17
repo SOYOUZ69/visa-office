@@ -32,6 +32,12 @@ let MetaService = class MetaService {
     getServiceTypes() {
         return Object.values(client_1.ServiceType);
     }
+    getPaymentOptions() {
+        return Object.values(client_1.PaymentOption);
+    }
+    getPaymentModalities() {
+        return Object.values(client_1.PaymentModality);
+    }
 };
 exports.MetaService = MetaService;
 exports.MetaService = MetaService = __decorate([

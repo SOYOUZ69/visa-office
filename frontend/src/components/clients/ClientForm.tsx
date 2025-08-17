@@ -15,6 +15,7 @@ import { CreateClientData, Client } from '@/types';
 import { toast } from 'sonner';
 import { Plus, Trash2, Upload } from 'lucide-react';
 import { ServicesSection } from './ServicesSection';
+import { PaymentSection } from './PaymentSection';
 
 const createClientSchema = z.object({
   clientType: z.enum(['INDIVIDUAL', 'FAMILY', 'GROUP', 'PHONE_CALL']),
@@ -375,6 +376,13 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
         <ServicesSection clientId={client.id} />
       ) : (
         <ServicesSection isNewClient={true} />
+      )}
+
+      {/* Payment Section */}
+      {client?.id ? (
+        <PaymentSection clientId={client.id} />
+      ) : (
+        <PaymentSection isNewClient={true} />
       )}
 
       <div className="flex justify-end space-x-4">

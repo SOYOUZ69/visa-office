@@ -34,4 +34,18 @@ export class MetaController {
   getServiceTypes() {
     return this.metaService.getServiceTypes();
   }
+
+  @Get('payment-options')
+  @ApiOperation({ summary: 'Get available payment options' })
+  @ApiResponse({ status: 200, description: 'List of payment options' })
+  getPaymentOptions() {
+    return this.metaService.getPaymentOptions();
+  }
+
+  @Get('payment-modalities')
+  @ApiOperation({ summary: 'Get available payment modalities' })
+  @ApiResponse({ status: 200, description: 'List of payment modalities' })
+  getPaymentModalities() {
+    return this.metaService.getPaymentModalities();
+  }
 }
