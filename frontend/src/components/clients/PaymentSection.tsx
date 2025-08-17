@@ -15,13 +15,13 @@ import { paymentsAPI, metaAPI, servicesAPI } from '@/lib/api';
 import { Payment, PaymentOption, PaymentModality, CreatePaymentData, ServiceItem } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { Plus, Save, Trash2, Calculator, CreditCard } from 'lucide-react';
+import { Plus, Save, Trash2, Calculator, CreditCard, Edit } from 'lucide-react';
 
 // Validation Schema
 const PaymentInstallmentSchema = z.object({
   description: z.string().min(1, 'Description is required'),
-  percentage: z.coerce.number().min(0.01, 'Percentage must be greater than 0').max(100, 'Percentage cannot exceed 100'),
-  amount: z.coerce.number().min(0, 'Amount must be at least 0'),
+  percentage: z.number().min(0.01, 'Percentage must be greater than 0').max(100, 'Percentage cannot exceed 100'),
+  amount: z.number().min(0, 'Amount must be at least 0'),
   dueDate: z.string().min(1, 'Due date is required'),
 });
 
@@ -85,6 +85,10 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
   const watchedPaymentOption = form.watch('paymentOption');
   const watchedPaymentModality = form.watch('paymentModality');
   const watchedInstallments = form.watch('installments');
+
+  // Determine if we should show configuration form or payment history
+  const shouldShowConfigForm = isNewClient || payments.length === 0 || isEditing;
+  const currentPayment = editingPaymentId ? payments.find(p => p.id === editingPaymentId) : null;
 
   useEffect(() => {
     if (clientId && !isNewClient) {
@@ -305,23 +309,41 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
 
     try {
       setSaving(true);
-      await paymentsAPI.createPayment(clientId, payload);
-      toast.success('Payment saved successfully');
+      
+      if (isEditing && editingPaymentId) {
+        // Update existing payment
+        await paymentsAPI.updatePayment(editingPaymentId, payload);
+        toast.success('Payment updated successfully');
+        setIsEditing(false);
+        setEditingPaymentId(null);
+      } else {
+        // Create new payment
+        if (!clientId) {
+          toast.error('Client ID is required');
+          return;
+        }
+        await paymentsAPI.createPayment(clientId, payload);
+        toast.success('Payment saved successfully');
+      }
+      
       loadData(); // Refresh the list
-      // Reset form
-      form.reset({
-        paymentOption: 'CASH',
-        paymentModality: 'FULL_PAYMENT',
-        transferCode: '',
-        installments: [
-          {
-            description: 'Full Payment',
-            percentage: 100,
-            amount: servicesTotal,
-            dueDate: '',
-          },
-        ],
-      });
+      
+      // Reset form if not editing
+      if (!isEditing) {
+        form.reset({
+          paymentOption: 'CASH',
+          paymentModality: 'FULL_PAYMENT',
+          transferCode: '',
+          installments: [
+            {
+              description: 'Full Payment',
+              percentage: 100,
+              amount: servicesTotal,
+              dueDate: '',
+            },
+          ],
+        });
+      }
     } catch (error) {
       console.error('Failed to save payment:', error);
       toast.error('Failed to save payment');
@@ -337,10 +359,55 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
       await paymentsAPI.deletePayment(paymentId);
       toast.success('Payment deleted successfully');
       loadData(); // Refresh the list
+      setIsEditing(false);
+      setEditingPaymentId(null);
     } catch (error) {
       console.error('Failed to delete payment:', error);
       toast.error('Failed to delete payment');
     }
+  };
+
+  const startEditing = (payment: Payment) => {
+    setIsEditing(true);
+    setEditingPaymentId(payment.id);
+    
+    // Pre-fill the form with existing payment data
+    form.reset({
+      paymentOption: payment.paymentOption,
+      paymentModality: payment.paymentModality,
+      transferCode: payment.transferCode || '',
+      installments: payment.installments.map(installment => ({
+        description: installment.description,
+        percentage: parseFloat(installment.percentage),
+        amount: parseFloat(installment.amount),
+        dueDate: installment.dueDate.split('T')[0], // Convert ISO date to YYYY-MM-DD
+      })),
+    });
+
+    // Set the correct number of installments for milestone payments
+    if (payment.paymentModality === 'MILESTONE_PAYMENTS') {
+      setNumberOfInstallments(payment.installments.length);
+    }
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+    setEditingPaymentId(null);
+    
+    // Reset form to default values
+    form.reset({
+      paymentOption: 'CASH',
+      paymentModality: 'FULL_PAYMENT',
+      transferCode: '',
+      installments: [
+        {
+          description: 'Full Payment',
+          percentage: 100,
+          amount: servicesTotal,
+          dueDate: '',
+        },
+      ],
+    });
   };
 
   if (loading && !isNewClient) {
@@ -423,8 +490,27 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
           </div>
         </div>
 
-        {isAdmin && (
+        {isAdmin && shouldShowConfigForm && (
           <form className="space-y-6">
+            {/* Edit Mode Header */}
+            {isEditing && (
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-blue-900">Edit Payment Configuration</h3>
+                    <p className="text-sm text-blue-700">Modify the payment settings below</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={cancelEditing}
+                    className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                  >
+                    Cancel Edit
+                  </Button>
+                </div>
+              </div>
+            )}
             {/* Payment Options */}
             <div className="space-y-3">
               <Label className="text-base font-semibold">Payment Option</Label>
@@ -619,14 +705,14 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
                 className="flex items-center gap-2"
               >
                 <Save className="h-4 w-4" />
-                {saving ? 'Saving...' : 'Save Payment'}
+                {saving ? 'Saving...' : (isEditing ? 'Update Payment' : 'Save Payment')}
               </Button>
             </div>
           </form>
         )}
 
-        {/* Existing Payments */}
-        {payments.length > 0 && (
+        {/* Payment History - Only show when not editing and payments exist */}
+        {!shouldShowConfigForm && payments.length > 0 && (
           <div className="space-y-3">
             <h3 className="text-lg font-semibold">Payment History</h3>
             <div className="space-y-4">
@@ -643,14 +729,24 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
                         </p>
                       </div>
                       {isAdmin && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deletePayment(payment.id)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => startEditing(payment)}
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deletePayment(payment.id)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </CardHeader>
