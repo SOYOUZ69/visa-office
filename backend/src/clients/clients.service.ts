@@ -4,7 +4,8 @@ import { CreateClientDto, PhoneNumberDto, EmployerDto } from './dto/create-clien
 import { UpdateClientDto } from './dto/update-client.dto';
 import { QueryClientDto } from './dto/query-client.dto';
 import { CreateFamilyMemberDto } from './dto/create-family-member.dto';
-import { ClientType } from '@prisma/client';
+import { CreatePhoneCallClientDto } from './dto/create-phone-call-client.dto';
+import { ClientType, PaymentOption } from '@prisma/client';
 
 @Injectable()
 export class ClientsService {
@@ -16,7 +17,14 @@ export class ClientsService {
       throw new BadRequestException('Passport number is required for non-phone call clients');
     }
 
-    const { phoneNumbers, employers, ...clientData } = createClientDto;
+    const { phoneNumbers, employers, familyMembers, ...clientData } = createClientDto;
+
+    // Validate familyMembers for FAMILY and GROUP types
+    if ((createClientDto.clientType === ClientType.FAMILY || createClientDto.clientType === ClientType.GROUP)) {
+      if (!familyMembers || familyMembers.length === 0) {
+        throw new BadRequestException('Family members are required for FAMILY and GROUP client types');
+      }
+    }
 
     return this.prisma.client.create({
       data: {
@@ -26,6 +34,9 @@ export class ClientsService {
         },
         employers: {
           create: employers || [],
+        },
+        familyMembers: {
+          create: familyMembers || [],
         },
       },
       include: {
@@ -110,7 +121,14 @@ export class ClientsService {
       throw new BadRequestException('Passport number is required for non-phone call clients');
     }
 
-    const { phoneNumbers, employers, ...clientData } = updateClientDto;
+    const { phoneNumbers, employers, familyMembers, ...clientData } = updateClientDto;
+
+    // Validate familyMembers for FAMILY and GROUP types
+    if (updateClientDto.clientType === ClientType.FAMILY || updateClientDto.clientType === ClientType.GROUP) {
+      if (familyMembers !== undefined && familyMembers.length === 0) {
+        throw new BadRequestException('Family members are required for FAMILY and GROUP client types');
+      }
+    }
 
     // Handle phone numbers update
     if (phoneNumbers !== undefined) {
@@ -122,6 +140,13 @@ export class ClientsService {
     // Handle employers update
     if (employers !== undefined) {
       await this.prisma.employer.deleteMany({
+        where: { clientId: id },
+      });
+    }
+
+    // Handle family members update
+    if (familyMembers !== undefined) {
+      await this.prisma.familyMember.deleteMany({
         where: { clientId: id },
       });
     }
@@ -138,6 +163,11 @@ export class ClientsService {
         ...(employers !== undefined && {
           employers: {
             create: employers,
+          },
+        }),
+        ...(familyMembers !== undefined && {
+          familyMembers: {
+            create: familyMembers,
           },
         }),
       },
@@ -187,5 +217,102 @@ export class ClientsService {
     });
 
     return { message: 'Family member deleted successfully' };
+  }
+
+  async createPhoneCallClient(dto: CreatePhoneCallClientDto) {
+    const { services, paymentConfig, phoneNumbers, employers, ...clientData } = dto;
+
+    // Validate that client type is PHONE_CALL
+    if (clientData.clientType !== ClientType.PHONE_CALL) {
+      throw new BadRequestException('This endpoint is only for Phone Call clients');
+    }
+
+    // Validate payment installments sum to 100%
+    const totalPercentage = paymentConfig.installments.reduce((sum, inst) => sum + inst.percentage, 0);
+    if (totalPercentage !== 100) {
+      throw new BadRequestException('Payment installments must sum to 100%');
+    }
+
+    // Validate transfer code if payment is due today and payment option is bank transfer
+    const today = new Date().toISOString().split('T')[0];
+    const hasDueToday = paymentConfig.installments.some(inst => {
+      const dueDate = new Date(inst.dueDate).toISOString().split('T')[0];
+      return dueDate === today;
+    });
+
+    if (hasDueToday && paymentConfig.paymentOption === PaymentOption.BANK_TRANSFER && !paymentConfig.transferCode) {
+      throw new BadRequestException('Transfer code is required for bank transfers due today');
+    }
+
+    // Use a transaction to ensure all or nothing
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Create the client
+      const client = await tx.client.create({
+        data: {
+          ...clientData,
+          phoneNumbers: {
+            create: phoneNumbers || [],
+          },
+          employers: {
+            create: employers || [],
+          },
+        },
+        include: {
+          phoneNumbers: true,
+          employers: true,
+        },
+      });
+
+      // 2. Create services
+      const createdServices = await tx.serviceItem.createMany({
+        data: services.map(service => ({
+          clientId: client.id,
+          serviceType: service.serviceType,
+          quantity: service.quantity,
+          unitPrice: service.unitPrice,
+        })),
+      });
+
+      // 3. Create payment with installments
+      const payment = await tx.payment.create({
+        data: {
+          clientId: client.id,
+          totalAmount: paymentConfig.totalAmount,
+          paymentOption: paymentConfig.paymentOption,
+          paymentModality: paymentConfig.paymentModality,
+          transferCode: paymentConfig.transferCode,
+          installments: {
+            create: paymentConfig.installments.map(inst => ({
+              description: inst.description,
+              percentage: inst.percentage,
+              amount: inst.amount,
+              dueDate: new Date(inst.dueDate),
+            })),
+          },
+        },
+        include: {
+          installments: true,
+        },
+      });
+
+      // 4. Fetch complete client with all relations
+      const completeClient = await tx.client.findUnique({
+        where: { id: client.id },
+        include: {
+          phoneNumbers: true,
+          employers: true,
+          attachments: true,
+          familyMembers: true,
+          serviceItems: true,
+          payments: {
+            include: {
+              installments: true,
+            },
+          },
+        },
+      });
+
+      return completeClient;
+    });
   }
 }

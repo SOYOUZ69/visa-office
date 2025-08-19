@@ -44,6 +44,12 @@ let ServicesController = class ServicesController {
     async deleteService(serviceId) {
         return this.servicesService.deleteService(serviceId);
     }
+    async getLastPrice(serviceType) {
+        return this.servicesService.getLastPrice(serviceType);
+    }
+    async getLastPrices(serviceTypes) {
+        return this.servicesService.getLastPrices(serviceTypes);
+    }
 };
 exports.ServicesController = ServicesController;
 __decorate([
@@ -129,6 +135,59 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], ServicesController.prototype, "deleteService", null);
+__decorate([
+    (0, common_1.Get)('services/last-price'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get the last price for a specific service type' }),
+    (0, swagger_1.ApiQuery)({
+        name: 'serviceType',
+        description: 'Service type to get the last price for',
+        enum: client_1.ServiceType
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Last price for the service type',
+        schema: {
+            type: 'object',
+            properties: {
+                unitPrice: {
+                    type: 'number',
+                    nullable: true,
+                    description: 'Last unit price used for this service type, or null if not found'
+                }
+            }
+        }
+    }),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN, client_1.UserRole.USER),
+    __param(0, (0, common_1.Query)('serviceType')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], ServicesController.prototype, "getLastPrice", null);
+__decorate([
+    (0, common_1.Post)('services/last-prices'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get the last prices for multiple service types (batch)' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Last prices for the requested service types',
+        schema: {
+            type: 'object',
+            additionalProperties: {
+                type: 'number',
+                nullable: true
+            },
+            example: {
+                'TRANSLATION': 50.00,
+                'ASSURANCE': 100.00,
+                'VISA_APPLICATION': null
+            }
+        }
+    }),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN, client_1.UserRole.USER),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Array]),
+    __metadata("design:returntype", Promise)
+], ServicesController.prototype, "getLastPrices", null);
 exports.ServicesController = ServicesController = __decorate([
     (0, swagger_1.ApiTags)('Services'),
     (0, swagger_1.ApiBearerAuth)(),

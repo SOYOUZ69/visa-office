@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { CreateManyServicesDto } from './dto/create-many-services.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
-import { ServiceItem } from '@prisma/client';
+import { ServiceItem, ServiceType } from '@prisma/client';
 
 @Injectable()
 export class ServicesService {
@@ -104,5 +104,42 @@ export class ServicesService {
     await this.prisma.serviceItem.delete({
       where: { id: serviceId },
     });
+  }
+
+  async getLastPrice(serviceType: ServiceType): Promise<{ unitPrice: number | null }> {
+    const lastService = await this.prisma.serviceItem.findFirst({
+      where: { serviceType },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return {
+      unitPrice: lastService ? Number(lastService.unitPrice) : null,
+    };
+  }
+
+  async getLastPrices(serviceTypes: ServiceType[]): Promise<{ [key: string]: number | null }> {
+    const results: { [key: string]: number | null } = {};
+
+    // Use Promise.all to fetch all service types in parallel
+    const promises = serviceTypes.map(async (serviceType) => {
+      const lastService = await this.prisma.serviceItem.findFirst({
+        where: { serviceType },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return {
+        serviceType,
+        unitPrice: lastService ? Number(lastService.unitPrice) : null,
+      };
+    });
+
+    const responses = await Promise.all(promises);
+
+    // Build the response object
+    responses.forEach(({ serviceType, unitPrice }) => {
+      results[serviceType] = unitPrice;
+    });
+
+    return results;
   }
 }

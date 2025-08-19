@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -37,6 +37,9 @@ export function ServicesSection({ clientId, isNewClient = false }: ServicesSecti
   const [serviceTypes, setServiceTypes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [priceLoadingStates, setPriceLoadingStates] = useState<{ [key: number]: boolean }>({});
+  const [prefilledPrices, setPrefilledPrices] = useState<{ [key: number]: boolean }>({});
+  const [userModifiedPrices, setUserModifiedPrices] = useState<{ [key: number]: boolean }>({});
   const { user } = useAuth();
 
   const form = useForm<ServicesFormData>({
@@ -56,8 +59,23 @@ export function ServicesSection({ clientId, isNewClient = false }: ServicesSecti
   useEffect(() => {
     if (clientId && !isNewClient) {
       loadData();
+    } else {
+      // Load service types for new clients too
+      loadServiceTypes();
     }
   }, [clientId, isNewClient]);
+
+  const loadServiceTypes = async () => {
+    try {
+      const typesData = await metaAPI.getServiceTypes();
+      setServiceTypes(typesData);
+    } catch (error) {
+      console.error('Failed to load service types:', error);
+      toast.error('Failed to load service types');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -75,15 +93,95 @@ export function ServicesSection({ clientId, isNewClient = false }: ServicesSecti
     }
   };
 
+  // Debounced function to fetch last price
+  const fetchLastPrice = useCallback(
+    async (serviceType: string, index: number) => {
+      if (!serviceType || userModifiedPrices[index]) return;
+
+      setPriceLoadingStates(prev => ({ ...prev, [index]: true }));
+      
+      try {
+        const response = await servicesAPI.getLastPrice(serviceType);
+        if (response.unitPrice !== null && !userModifiedPrices[index]) {
+          form.setValue(`services.${index}.unitPrice`, response.unitPrice);
+          setPrefilledPrices(prev => ({ ...prev, [index]: true }));
+        }
+      } catch (error) {
+        console.error('Failed to fetch last price:', error);
+        // Silent error - don't show toast for price fetching failures
+      } finally {
+        setPriceLoadingStates(prev => ({ ...prev, [index]: false }));
+      }
+    },
+    [form, userModifiedPrices]
+  );
+
+  // Debounce timer
+  const [debounceTimers, setDebounceTimers] = useState<{ [key: number]: NodeJS.Timeout }>({});
+
+  const handleServiceTypeChange = (value: string, index: number) => {
+    form.setValue(`services.${index}.serviceType`, value);
+    
+    // Clear any existing timer for this index
+    if (debounceTimers[index]) {
+      clearTimeout(debounceTimers[index]);
+    }
+
+    // Set new timer
+    const timer = setTimeout(() => {
+      fetchLastPrice(value, index);
+    }, 200);
+
+    setDebounceTimers(prev => ({ ...prev, [index]: timer }));
+  };
+
+  const handlePriceChange = (index: number, value: string) => {
+    setUserModifiedPrices(prev => ({ ...prev, [index]: true }));
+    setPrefilledPrices(prev => ({ ...prev, [index]: false }));
+    form.setValue(`services.${index}.unitPrice`, parseFloat(value) || 0);
+  };
+
   const addServiceRow = () => {
+    const newIndex = fields.length;
     append({
       serviceType: '',
       quantity: 1,
       unitPrice: 0,
     });
+    // Reset states for new row
+    setPrefilledPrices(prev => ({ ...prev, [newIndex]: false }));
+    setUserModifiedPrices(prev => ({ ...prev, [newIndex]: false }));
+    setPriceLoadingStates(prev => ({ ...prev, [newIndex]: false }));
   };
 
   const removeServiceRow = (index: number) => {
+    // Clear timer if exists
+    if (debounceTimers[index]) {
+      clearTimeout(debounceTimers[index]);
+    }
+    
+    // Clean up states
+    setDebounceTimers(prev => {
+      const newTimers = { ...prev };
+      delete newTimers[index];
+      return newTimers;
+    });
+    setPrefilledPrices(prev => {
+      const newStates = { ...prev };
+      delete newStates[index];
+      return newStates;
+    });
+    setUserModifiedPrices(prev => {
+      const newStates = { ...prev };
+      delete newStates[index];
+      return newStates;
+    });
+    setPriceLoadingStates(prev => {
+      const newStates = { ...prev };
+      delete newStates[index];
+      return newStates;
+    });
+    
     remove(index);
   };
 
@@ -255,7 +353,7 @@ export function ServicesSection({ clientId, isNewClient = false }: ServicesSecti
                     <div className="col-span-3">
                       <Select
                         value={form.watch(`services.${index}.serviceType`)}
-                        onValueChange={(value) => form.setValue(`services.${index}.serviceType`, value)}
+                        onValueChange={(value) => handleServiceTypeChange(value, index)}
                         disabled={saving}
                       >
                         <SelectTrigger>
@@ -292,14 +390,28 @@ export function ServicesSection({ clientId, isNewClient = false }: ServicesSecti
                     </div>
                     
                     <div className="col-span-2">
-                      <Input
-                        type="number"
-                        placeholder="Unit Price"
-                        min="0"
-                        step="0.01"
-                        {...form.register(`services.${index}.unitPrice`)}
-                        disabled={saving}
-                      />
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          placeholder="Unit Price"
+                          min="0"
+                          step="0.01"
+                          value={form.watch(`services.${index}.unitPrice`) || ''}
+                          onChange={(e) => handlePriceChange(index, e.target.value)}
+                          disabled={saving || priceLoadingStates[index]}
+                          className={prefilledPrices[index] ? 'border-blue-300 bg-blue-50' : ''}
+                        />
+                        {priceLoadingStates[index] && (
+                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                          </div>
+                        )}
+                      </div>
+                      {prefilledPrices[index] && (
+                        <p className="text-xs text-blue-600 mt-1">
+                          ✓ Prérempli depuis l&apos;historique
+                        </p>
+                      )}
                       {form.formState.errors.services?.[index]?.unitPrice && (
                         <p className="text-sm text-red-500 mt-1">
                           {form.formState.errors.services[index]?.unitPrice?.message}

@@ -36,9 +36,11 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiProperty)({
         enum: client_1.PaymentOption,
-        description: 'Payment option chosen by client',
-        example: 'BANK_TRANSFER'
+        description: 'Payment option chosen by client (required for FULL_PAYMENT, optional for others)',
+        example: 'BANK_TRANSFER',
+        required: false
     }),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsEnum)(client_1.PaymentOption),
     __metadata("design:type", String)
 ], CreatePaymentDto.prototype, "paymentOption", void 0);

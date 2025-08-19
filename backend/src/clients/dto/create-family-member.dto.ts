@@ -1,19 +1,40 @@
-import { IsString, IsNumber, IsOptional, Min, Max } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, Min } from 'class-validator';
 
 export class CreateFamilyMemberDto {
-  @ApiProperty({ example: 'Jane Doe' })
+  @ApiProperty({
+    description: 'Full name of the family member',
+    example: 'John Doe'
+  })
   @IsString()
+  @IsNotEmpty()
   fullName: string;
 
-  @ApiProperty({ example: 'Spouse' })
+  @ApiProperty({
+    description: 'Passport number of the family member',
+    example: 'AB1234567'
+  })
   @IsString()
-  relationship: string;
+  @IsNotEmpty()
+  passportNumber: string;
 
-  @ApiPropertyOptional({ example: 30, minimum: 0, maximum: 120 })
+  @ApiProperty({
+    description: 'Relationship to the main client',
+    example: 'Spouse',
+    required: false
+  })
+  @IsOptional()
+  @IsString()
+  relationship?: string;
+
+  @ApiProperty({
+    description: 'Age of the family member',
+    minimum: 0,
+    example: 35,
+    required: false
+  })
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  @Max(120)
-  @IsOptional()
   age?: number;
 }

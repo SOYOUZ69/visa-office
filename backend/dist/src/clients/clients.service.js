@@ -22,7 +22,12 @@ let ClientsService = class ClientsService {
         if (createClientDto.clientType !== client_1.ClientType.PHONE_CALL && !createClientDto.passportNumber) {
             throw new common_1.BadRequestException('Passport number is required for non-phone call clients');
         }
-        const { phoneNumbers, employers, ...clientData } = createClientDto;
+        const { phoneNumbers, employers, familyMembers, ...clientData } = createClientDto;
+        if ((createClientDto.clientType === client_1.ClientType.FAMILY || createClientDto.clientType === client_1.ClientType.GROUP)) {
+            if (!familyMembers || familyMembers.length === 0) {
+                throw new common_1.BadRequestException('Family members are required for FAMILY and GROUP client types');
+            }
+        }
         return this.prisma.client.create({
             data: {
                 ...clientData,
@@ -31,6 +36,9 @@ let ClientsService = class ClientsService {
                 },
                 employers: {
                     create: employers || [],
+                },
+                familyMembers: {
+                    create: familyMembers || [],
                 },
             },
             include: {
@@ -102,7 +110,12 @@ let ClientsService = class ClientsService {
         if (updateClientDto.clientType !== client_1.ClientType.PHONE_CALL && !updateClientDto.passportNumber) {
             throw new common_1.BadRequestException('Passport number is required for non-phone call clients');
         }
-        const { phoneNumbers, employers, ...clientData } = updateClientDto;
+        const { phoneNumbers, employers, familyMembers, ...clientData } = updateClientDto;
+        if (updateClientDto.clientType === client_1.ClientType.FAMILY || updateClientDto.clientType === client_1.ClientType.GROUP) {
+            if (familyMembers !== undefined && familyMembers.length === 0) {
+                throw new common_1.BadRequestException('Family members are required for FAMILY and GROUP client types');
+            }
+        }
         if (phoneNumbers !== undefined) {
             await this.prisma.phoneNumber.deleteMany({
                 where: { clientId: id },
@@ -110,6 +123,11 @@ let ClientsService = class ClientsService {
         }
         if (employers !== undefined) {
             await this.prisma.employer.deleteMany({
+                where: { clientId: id },
+            });
+        }
+        if (familyMembers !== undefined) {
+            await this.prisma.familyMember.deleteMany({
                 where: { clientId: id },
             });
         }
@@ -125,6 +143,11 @@ let ClientsService = class ClientsService {
                 ...(employers !== undefined && {
                     employers: {
                         create: employers,
+                    },
+                }),
+                ...(familyMembers !== undefined && {
+                    familyMembers: {
+                        create: familyMembers,
                     },
                 }),
             },
@@ -163,6 +186,85 @@ let ClientsService = class ClientsService {
             where: { id },
         });
         return { message: 'Family member deleted successfully' };
+    }
+    async createPhoneCallClient(dto) {
+        const { services, paymentConfig, phoneNumbers, employers, ...clientData } = dto;
+        if (clientData.clientType !== client_1.ClientType.PHONE_CALL) {
+            throw new common_1.BadRequestException('This endpoint is only for Phone Call clients');
+        }
+        const totalPercentage = paymentConfig.installments.reduce((sum, inst) => sum + inst.percentage, 0);
+        if (totalPercentage !== 100) {
+            throw new common_1.BadRequestException('Payment installments must sum to 100%');
+        }
+        const today = new Date().toISOString().split('T')[0];
+        const hasDueToday = paymentConfig.installments.some(inst => {
+            const dueDate = new Date(inst.dueDate).toISOString().split('T')[0];
+            return dueDate === today;
+        });
+        if (hasDueToday && paymentConfig.paymentOption === client_1.PaymentOption.BANK_TRANSFER && !paymentConfig.transferCode) {
+            throw new common_1.BadRequestException('Transfer code is required for bank transfers due today');
+        }
+        return this.prisma.$transaction(async (tx) => {
+            const client = await tx.client.create({
+                data: {
+                    ...clientData,
+                    phoneNumbers: {
+                        create: phoneNumbers || [],
+                    },
+                    employers: {
+                        create: employers || [],
+                    },
+                },
+                include: {
+                    phoneNumbers: true,
+                    employers: true,
+                },
+            });
+            const createdServices = await tx.serviceItem.createMany({
+                data: services.map(service => ({
+                    clientId: client.id,
+                    serviceType: service.serviceType,
+                    quantity: service.quantity,
+                    unitPrice: service.unitPrice,
+                })),
+            });
+            const payment = await tx.payment.create({
+                data: {
+                    clientId: client.id,
+                    totalAmount: paymentConfig.totalAmount,
+                    paymentOption: paymentConfig.paymentOption,
+                    paymentModality: paymentConfig.paymentModality,
+                    transferCode: paymentConfig.transferCode,
+                    installments: {
+                        create: paymentConfig.installments.map(inst => ({
+                            description: inst.description,
+                            percentage: inst.percentage,
+                            amount: inst.amount,
+                            dueDate: new Date(inst.dueDate),
+                        })),
+                    },
+                },
+                include: {
+                    installments: true,
+                },
+            });
+            const completeClient = await tx.client.findUnique({
+                where: { id: client.id },
+                include: {
+                    phoneNumbers: true,
+                    employers: true,
+                    attachments: true,
+                    familyMembers: true,
+                    serviceItems: true,
+                    payments: {
+                        include: {
+                            installments: true,
+                        },
+                    },
+                },
+            });
+            return completeClient;
+        });
     }
 };
 exports.ClientsService = ClientsService;

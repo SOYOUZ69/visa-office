@@ -20,6 +20,7 @@ const create_client_dto_1 = require("./dto/create-client.dto");
 const update_client_dto_1 = require("./dto/update-client.dto");
 const query_client_dto_1 = require("./dto/query-client.dto");
 const create_family_member_dto_1 = require("./dto/create-family-member.dto");
+const create_phone_call_client_dto_1 = require("./dto/create-phone-call-client.dto");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const roles_guard_1 = require("../auth/guards/roles.guard");
 const roles_guard_2 = require("../auth/guards/roles.guard");
@@ -31,6 +32,9 @@ let ClientsController = class ClientsController {
     }
     create(createClientDto) {
         return this.clientsService.create(createClientDto);
+    }
+    createPhoneCallClient(createPhoneCallClientDto) {
+        return this.clientsService.createPhoneCallClient(createPhoneCallClientDto);
     }
     findAll(query) {
         return this.clientsService.findAll(query);
@@ -66,6 +70,20 @@ __decorate([
     __metadata("design:paramtypes", [create_client_dto_1.CreateClientDto]),
     __metadata("design:returntype", void 0)
 ], ClientsController.prototype, "create", null);
+__decorate([
+    (0, common_1.Post)('phone-call'),
+    (0, roles_guard_2.Roles)(client_1.UserRole.ADMIN),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Create a Phone Call client with services and payment in one transaction' }),
+    (0, swagger_1.ApiResponse)({ status: 201, description: 'Phone Call client created successfully with services and payment' }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Bad request - validation error' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - admin role required' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [create_phone_call_client_dto_1.CreatePhoneCallClientDto]),
+    __metadata("design:returntype", void 0)
+], ClientsController.prototype, "createPhoneCallClient", null);
 __decorate([
     (0, common_1.Get)(),
     (0, swagger_1.ApiBearerAuth)(),

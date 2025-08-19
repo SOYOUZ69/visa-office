@@ -169,6 +169,14 @@ export const servicesAPI = {
     const response = await api.delete(`/api/v1/services/${serviceId}`);
     return response.data;
   },
+  getLastPrice: async (serviceType: string): Promise<{ unitPrice: number | null }> => {
+    const response = await api.get(`/api/v1/services/last-price?serviceType=${serviceType}`);
+    return response.data;
+  },
+  getLastPrices: async (serviceTypes: string[]): Promise<{ [key: string]: number | null }> => {
+    const response = await api.post('/api/v1/services/last-prices', serviceTypes);
+    return response.data;
+  },
 };
 
 // Payments API

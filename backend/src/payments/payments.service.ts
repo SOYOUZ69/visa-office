@@ -77,6 +77,9 @@ export class PaymentsService {
             percentage: installment.percentage,
             amount: installment.amount,
             dueDate: new Date(installment.dueDate),
+            paymentOption: installment.paymentOption,
+            transferCode: installment.transferCode,
+            status: installment.status || 'PENDING',
           })),
         },
       },
@@ -155,6 +158,9 @@ export class PaymentsService {
             percentage: installment.percentage,
             amount: installment.amount,
             dueDate: new Date(installment.dueDate),
+            paymentOption: installment.paymentOption,
+            transferCode: installment.transferCode,
+            status: installment.status || 'PENDING',
           })),
         });
       }

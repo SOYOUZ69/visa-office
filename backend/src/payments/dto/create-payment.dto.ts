@@ -16,11 +16,13 @@ export class CreatePaymentDto {
 
   @ApiProperty({
     enum: PaymentOption,
-    description: 'Payment option chosen by client',
-    example: 'BANK_TRANSFER'
+    description: 'Payment option chosen by client (required for FULL_PAYMENT, optional for others)',
+    example: 'BANK_TRANSFER',
+    required: false
   })
+  @IsOptional()
   @IsEnum(PaymentOption)
-  paymentOption: PaymentOption;
+  paymentOption?: PaymentOption;
 
   @ApiProperty({
     enum: PaymentModality,

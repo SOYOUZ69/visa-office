@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsNumber, Min, Max, IsDateString } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, Min, Max, IsDateString, IsOptional, IsEnum } from 'class-validator';
+import { PaymentOption, InstallmentStatus } from '@prisma/client';
 
 export class CreatePaymentInstallmentDto {
   @ApiProperty({
@@ -36,5 +37,34 @@ export class CreatePaymentInstallmentDto {
   })
   @IsDateString()
   dueDate: string;
+
+  @ApiProperty({
+    description: 'Payment option for this installment (for non-FULL_PAYMENT modalities)',
+    enum: PaymentOption,
+    example: PaymentOption.CASH,
+    required: false
+  })
+  @IsOptional()
+  @IsEnum(PaymentOption)
+  paymentOption?: PaymentOption;
+
+  @ApiProperty({
+    description: 'Transfer code for this installment (required if paymentOption is BANK_TRANSFER and due today)',
+    example: 'TRF123456',
+    required: false
+  })
+  @IsOptional()
+  @IsString()
+  transferCode?: string;
+
+  @ApiProperty({
+    description: 'Payment status for this installment',
+    enum: InstallmentStatus,
+    example: InstallmentStatus.PENDING,
+    required: false
+  })
+  @IsOptional()
+  @IsEnum(InstallmentStatus)
+  status?: InstallmentStatus;
 }
 

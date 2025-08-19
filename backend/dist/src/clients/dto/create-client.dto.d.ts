@@ -1,4 +1,5 @@
 import { ClientType } from '@prisma/client';
+import { CreateFamilyMemberDto } from './create-family-member.dto';
 export declare class PhoneNumberDto {
     number: string;
 }
@@ -16,6 +17,11 @@ export declare class CreateClientDto {
     destination: string;
     visaType: string;
     notes?: string;
+    isMinor?: boolean;
+    guardianFullName?: string;
+    guardianCIN?: string;
+    guardianRelationship?: string;
     phoneNumbers?: PhoneNumberDto[];
     employers?: EmployerDto[];
+    familyMembers?: CreateFamilyMemberDto[];
 }

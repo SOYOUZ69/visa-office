@@ -64,6 +64,11 @@ enum PaymentModality {
   MILESTONE_PAYMENTS
 }
 
+enum InstallmentStatus {
+  PENDING
+  PAID
+}
+
 // Models
 model User {
   id        String   @id @default(cuid())
@@ -77,19 +82,23 @@ model User {
 }
 
 model Client {
-  id             String       @id @default(cuid())
-  clientType     ClientType
-  status         ClientStatus @default(NEW)
-  fullName       String
-  address        String
-  jobTitle       String?
-  passportNumber String?
-  email          String
-  destination    String
-  visaType       String
-  notes          String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id                   String       @id @default(cuid())
+  clientType           ClientType
+  status               ClientStatus @default(NEW)
+  fullName             String
+  address              String
+  jobTitle             String?
+  passportNumber       String?
+  email                String
+  destination          String
+  visaType             String
+  notes                String?
+  isMinor              Boolean      @default(false)
+  guardianFullName     String?
+  guardianCIN          String?
+  guardianRelationship String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 
   // Relations
   phoneNumbers  PhoneNumber[]
@@ -137,12 +146,15 @@ model Attachment {
 }
 
 model FamilyMember {
-  id           String  @id @default(cuid())
-  fullName     String
-  relationship String
-  age          Int?
-  clientId     String
-  client       Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  fullName       String
+  passportNumber String
+  relationship   String?
+  age            Int?
+  clientId       String
+  client         Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@map("family_members")
 }
@@ -165,7 +177,7 @@ model Payment {
   clientId        String
   client          Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
   totalAmount     Decimal         @db.Decimal(10,2)
-  paymentOption   PaymentOption
+  paymentOption   PaymentOption?
   paymentModality PaymentModality
   transferCode    String?
   createdAt       DateTime        @default(now())
@@ -178,15 +190,18 @@ model Payment {
 }
 
 model PaymentInstallment {
-  id          String   @id @default(cuid())
-  paymentId   String
-  payment     Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  description String
-  percentage  Decimal  @db.Decimal(5,2) // e.g., 60.00 for 60%
-  amount      Decimal  @db.Decimal(10,2)
-  dueDate     DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String            @id @default(cuid())
+  paymentId     String
+  payment       Payment           @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  description   String
+  percentage    Decimal           @db.Decimal(5,2) // e.g., 60.00 for 60%
+  amount        Decimal           @db.Decimal(10,2)
+  dueDate       DateTime
+  paymentOption PaymentOption?
+  transferCode  String?
+  status        InstallmentStatus @default(PENDING)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   @@map("payment_installments")
 }

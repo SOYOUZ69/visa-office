@@ -87,6 +87,33 @@ let ServicesService = class ServicesService {
             where: { id: serviceId },
         });
     }
+    async getLastPrice(serviceType) {
+        const lastService = await this.prisma.serviceItem.findFirst({
+            where: { serviceType },
+            orderBy: { createdAt: 'desc' },
+        });
+        return {
+            unitPrice: lastService ? Number(lastService.unitPrice) : null,
+        };
+    }
+    async getLastPrices(serviceTypes) {
+        const results = {};
+        const promises = serviceTypes.map(async (serviceType) => {
+            const lastService = await this.prisma.serviceItem.findFirst({
+                where: { serviceType },
+                orderBy: { createdAt: 'desc' },
+            });
+            return {
+                serviceType,
+                unitPrice: lastService ? Number(lastService.unitPrice) : null,
+            };
+        });
+        const responses = await Promise.all(promises);
+        responses.forEach(({ serviceType, unitPrice }) => {
+            results[serviceType] = unitPrice;
+        });
+        return results;
+    }
 };
 exports.ServicesService = ServicesService;
 exports.ServicesService = ServicesService = __decorate([

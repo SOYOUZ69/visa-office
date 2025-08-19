@@ -3,6 +3,7 @@
 import { useSearchParams } from 'next/navigation';
 import { Layout } from '@/components/Layout';
 import { ClientForm } from '@/components/clients/ClientForm';
+import { PhoneCallClientWizard } from '@/components/clients/PhoneCallClientWizard';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -41,6 +42,17 @@ export default function NewClientPage() {
               </CardDescription>
             </CardHeader>
           </Card>
+        </Layout>
+      </ProtectedRoute>
+    );
+  }
+
+  // Use special wizard for Phone Call clients
+  if (clientType === 'PHONE_CALL') {
+    return (
+      <ProtectedRoute>
+        <Layout>
+          <PhoneCallClientWizard />
         </Layout>
       </ProtectedRoute>
     );

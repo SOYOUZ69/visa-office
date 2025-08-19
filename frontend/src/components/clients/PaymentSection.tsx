@@ -12,10 +12,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { paymentsAPI, metaAPI, servicesAPI } from '@/lib/api';
-import { Payment, PaymentOption, PaymentModality, CreatePaymentData, ServiceItem } from '@/types';
+import { Payment, PaymentOption, PaymentModality, CreatePaymentData, ServiceItem, InstallmentStatus } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { Plus, Save, Trash2, Calculator, CreditCard, Edit } from 'lucide-react';
+import { Plus, Save, Trash2, Calculator, CreditCard, Edit, CheckCircle, Clock } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Validation Schema
 const PaymentInstallmentSchema = z.object({
@@ -23,10 +24,13 @@ const PaymentInstallmentSchema = z.object({
   percentage: z.number().min(0.01, 'Percentage must be greater than 0').max(100, 'Percentage cannot exceed 100'),
   amount: z.number().min(0, 'Amount must be at least 0'),
   dueDate: z.string().min(1, 'Due date is required'),
+  paymentOption: z.enum(['BANK_TRANSFER', 'CHEQUE', 'POST', 'CASH'] as const).optional(),
+  transferCode: z.string().optional(),
+  status: z.enum(['PENDING', 'PAID'] as const).optional(),
 });
 
 const PaymentFormSchema = z.object({
-  paymentOption: z.enum(['BANK_TRANSFER', 'CHEQUE', 'POST', 'CASH'] as const),
+  paymentOption: z.enum(['BANK_TRANSFER', 'CHEQUE', 'POST', 'CASH'] as const).optional(),
   paymentModality: z.enum(['FULL_PAYMENT', 'SIXTY_FORTY', 'MILESTONE_PAYMENTS'] as const),
   transferCode: z.string().optional(),
   installments: z.array(PaymentInstallmentSchema).min(1, 'At least one installment is required'),
@@ -37,6 +41,19 @@ const PaymentFormSchema = z.object({
 }, {
   message: 'Installment percentages must sum to exactly 100%',
   path: ['installments'],
+}).refine((data) => {
+  // For FULL_PAYMENT, global paymentOption is required
+  if (data.paymentModality === 'FULL_PAYMENT') {
+    return !!data.paymentOption;
+  }
+  // For other modalities, each installment must have a paymentOption
+  if (data.paymentModality === 'SIXTY_FORTY' || data.paymentModality === 'MILESTONE_PAYMENTS') {
+    return data.installments.every(installment => !!installment.paymentOption);
+  }
+  return true;
+}, {
+  message: 'Payment option is required',
+  path: ['paymentOption'],
 });
 
 type PaymentFormData = z.infer<typeof PaymentFormSchema>;
@@ -71,6 +88,7 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
           percentage: 100,
           amount: 0,
           dueDate: '',
+          status: 'PENDING',
         },
       ],
     },
@@ -106,25 +124,45 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
     setServicesTotal(total);
   }, [services]);
 
-  // Update installment amounts when total or percentages change
+  // Update installment amounts when total or percentages change (only when not editing existing payment)
   useEffect(() => {
-    const updatedInstallments = watchedInstallments.map(installment => ({
-      ...installment,
-      amount: (servicesTotal * installment.percentage) / 100,
-    }));
+    // Don't auto-update amounts when editing an existing payment initially
+    if (isEditing && editingPaymentId) {
+      return;
+    }
+
+    const updatedInstallments = watchedInstallments.map(installment => {
+      const percentage = typeof installment.percentage === 'string' 
+        ? parseFloat(installment.percentage) || 0 
+        : installment.percentage || 0;
+      
+      return {
+        ...installment,
+        percentage, // Ensure percentage is a number
+        amount: (servicesTotal * percentage) / 100,
+      };
+    });
     
     // Only update if amounts have changed to avoid infinite loops
-    const hasChanged = updatedInstallments.some((updated, index) => 
-      Math.abs(updated.amount - watchedInstallments[index].amount) > 0.01
-    );
+    const hasChanged = updatedInstallments.some((updated, index) => {
+      const currentAmount = typeof watchedInstallments[index]?.amount === 'string' 
+        ? parseFloat(watchedInstallments[index].amount) || 0 
+        : watchedInstallments[index]?.amount || 0;
+      return Math.abs(updated.amount - currentAmount) > 0.01;
+    });
     
     if (hasChanged) {
       form.setValue('installments', updatedInstallments);
     }
-  }, [servicesTotal, watchedInstallments, form]);
+  }, [servicesTotal, form, isEditing, editingPaymentId]); // Remove watchedInstallments from dependencies to avoid infinite loops
 
-  // Handle payment modality changes
+  // Handle payment modality changes (only when not editing existing payment)
   useEffect(() => {
+    // Don't auto-replace fields when editing an existing payment
+    if (isEditing && editingPaymentId) {
+      return;
+    }
+    
     switch (watchedPaymentModality) {
       case 'FULL_PAYMENT':
         replace([{
@@ -132,6 +170,7 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
           percentage: 100,
           amount: servicesTotal,
           dueDate: '',
+          status: 'PENDING',
         }]);
         break;
       case 'SIXTY_FORTY':
@@ -141,12 +180,18 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
             percentage: 60,
             amount: servicesTotal * 0.6,
             dueDate: '',
+            paymentOption: 'CASH',
+            transferCode: '',
+            status: 'PENDING',
           },
           {
             description: 'Second Payment - 40%',
             percentage: 40,
             amount: servicesTotal * 0.4,
             dueDate: '',
+            paymentOption: 'CASH',
+            transferCode: '',
+            status: 'PENDING',
           },
         ]);
         break;
@@ -159,12 +204,15 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
             percentage: defaultPercentage,
             amount: (servicesTotal * defaultPercentage) / 100,
             dueDate: '',
+            paymentOption: 'CASH',
+            transferCode: '',
+            status: 'PENDING',
           }));
           replace(defaultInstallments);
         }
         break;
     }
-  }, [watchedPaymentModality, servicesTotal, numberOfInstallments, replace, fields.length]);
+  }, [watchedPaymentModality, servicesTotal, numberOfInstallments, replace, fields.length, isEditing, editingPaymentId]);
 
   const loadData = async () => {
     try {
@@ -209,6 +257,9 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
       percentage: Math.max(0, remainingPercentage),
       amount: (servicesTotal * Math.max(0, remainingPercentage)) / 100,
       dueDate: '',
+      paymentOption: 'CASH',
+      transferCode: '',
+      status: 'PENDING',
     });
   };
 
@@ -227,22 +278,42 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
         percentage,
         amount: (servicesTotal * percentage) / 100,
         dueDate: '',
+        paymentOption: 'CASH',
+        transferCode: '',
+        status: 'PENDING',
       }));
       replace(newInstallments);
     }
   };
 
-  const isTransferCodeRequired = () => {
-    if (watchedPaymentOption !== 'BANK_TRANSFER') return false;
-    
+  const isTransferCodeRequired = (installmentIndex?: number) => {
     const today = new Date().toISOString().split('T')[0];
+    
+    // For FULL_PAYMENT mode, check global payment option
+    if (watchedPaymentModality === 'FULL_PAYMENT') {
+      if (watchedPaymentOption !== 'BANK_TRANSFER') return false;
+      return watchedInstallments.some(installment => installment.dueDate === today);
+    }
+    
+    // For individual installment
+    if (installmentIndex !== undefined) {
+      const installment = watchedInstallments[installmentIndex];
+      return installment?.paymentOption === 'BANK_TRANSFER' && installment?.dueDate === today;
+    }
+    
+    // Check if any installment needs transfer code
     return watchedInstallments.some(installment => 
-      installment.dueDate === today
+      installment.paymentOption === 'BANK_TRANSFER' && installment.dueDate === today
     );
   };
 
   const calculateTotalPercentage = () => {
-    return watchedInstallments.reduce((sum, installment) => sum + installment.percentage, 0);
+    return watchedInstallments.reduce((sum, installment) => {
+      const percentage = typeof installment.percentage === 'string' 
+        ? parseFloat(installment.percentage) || 0 
+        : installment.percentage || 0;
+      return sum + percentage;
+    }, 0);
   };
 
   const formatCurrency = (amount: number) => {
@@ -271,6 +342,22 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
     }
   };
 
+  const getStatusLabel = (status: InstallmentStatus) => {
+    switch (status) {
+      case 'PENDING': return 'Pending';
+      case 'PAID': return 'Paid';
+      default: return status;
+    }
+  };
+
+  const getStatusIcon = (status: InstallmentStatus) => {
+    switch (status) {
+      case 'PAID': return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case 'PENDING': return <Clock className="h-4 w-4 text-orange-600" />;
+      default: return <Clock className="h-4 w-4 text-orange-600" />;
+    }
+  };
+
   const savePayment = async () => {
     const formData = form.getValues();
     
@@ -281,10 +368,21 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
       return;
     }
 
-    // Validate transfer code if required
-    if (isTransferCodeRequired() && !formData.transferCode?.trim()) {
-      toast.error('Transfer code is required for bank transfers due today');
-      return;
+    // Validate transfer codes if required
+    if (formData.paymentModality === 'FULL_PAYMENT') {
+      if (isTransferCodeRequired() && !formData.transferCode?.trim()) {
+        toast.error('Transfer code is required for bank transfers due today');
+        return;
+      }
+    } else {
+      // For SIXTY_FORTY and MILESTONE_PAYMENTS, check each installment
+      const missingTransferCodes = formData.installments.filter((installment, index) => 
+        isTransferCodeRequired(index) && !installment.transferCode?.trim()
+      );
+      if (missingTransferCodes.length > 0) {
+        toast.error('Transfer code is required for bank transfers due today');
+        return;
+      }
     }
 
     // Validate all due dates are filled
@@ -296,14 +394,17 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
 
     const payload: CreatePaymentData = {
       totalAmount: servicesTotal,
-      paymentOption: formData.paymentOption,
+      paymentOption: formData.paymentModality === 'FULL_PAYMENT' ? formData.paymentOption : undefined,
       paymentModality: formData.paymentModality,
-      transferCode: formData.transferCode || undefined,
+      transferCode: formData.paymentModality === 'FULL_PAYMENT' ? (formData.transferCode || undefined) : undefined,
       installments: formData.installments.map(installment => ({
         description: installment.description,
         percentage: installment.percentage,
         amount: installment.amount,
         dueDate: installment.dueDate,
+        paymentOption: formData.paymentModality !== 'FULL_PAYMENT' ? installment.paymentOption : undefined,
+        transferCode: formData.paymentModality !== 'FULL_PAYMENT' ? installment.transferCode : undefined,
+        status: installment.status || 'PENDING',
       })),
     };
 
@@ -340,6 +441,7 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
               percentage: 100,
               amount: servicesTotal,
               dueDate: '',
+              status: 'PENDING',
             },
           ],
         });
@@ -371,28 +473,38 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
     setIsEditing(true);
     setEditingPaymentId(payment.id);
     
-    // Pre-fill the form with existing payment data
-    form.reset({
-      paymentOption: payment.paymentOption,
-      paymentModality: payment.paymentModality,
-      transferCode: payment.transferCode || '',
-      installments: payment.installments.map(installment => ({
-        description: installment.description,
-        percentage: parseFloat(installment.percentage),
-        amount: parseFloat(installment.amount),
-        dueDate: installment.dueDate.split('T')[0], // Convert ISO date to YYYY-MM-DD
-      })),
-    });
-
-    // Set the correct number of installments for milestone payments
+    // Set the correct number of installments for milestone payments first
     if (payment.paymentModality === 'MILESTONE_PAYMENTS') {
       setNumberOfInstallments(payment.installments.length);
     }
+    
+    // Use setTimeout to ensure all state updates are applied before setting form data
+    setTimeout(() => {
+      // Pre-fill the form with existing payment data
+      const formData = {
+        paymentOption: payment.paymentModality === 'FULL_PAYMENT' ? payment.paymentOption : undefined,
+        paymentModality: payment.paymentModality,
+        transferCode: payment.paymentModality === 'FULL_PAYMENT' ? (payment.transferCode || '') : '',
+        installments: payment.installments.map(installment => ({
+          description: installment.description,
+          percentage: parseFloat(installment.percentage),
+          amount: parseFloat(installment.amount),
+          dueDate: installment.dueDate.split('T')[0], // Convert ISO date to YYYY-MM-DD
+          paymentOption: payment.paymentModality !== 'FULL_PAYMENT' ? (installment.paymentOption || 'CASH') : undefined,
+          transferCode: payment.paymentModality !== 'FULL_PAYMENT' ? (installment.transferCode || '') : undefined,
+          status: installment.status || 'PENDING',
+        })),
+      };
+
+      console.log('Setting form data for editing:', formData);
+      form.reset(formData);
+    }, 50); // Small delay to ensure state synchronization
   };
 
   const cancelEditing = () => {
     setIsEditing(false);
     setEditingPaymentId(null);
+    setNumberOfInstallments(2); // Reset to default
     
     // Reset form to default values
     form.reset({
@@ -405,6 +517,7 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
           percentage: 100,
           amount: servicesTotal,
           dueDate: '',
+          status: 'PENDING',
         },
       ],
     });
@@ -511,22 +624,24 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
                 </div>
               </div>
             )}
-            {/* Payment Options */}
-            <div className="space-y-3">
-              <Label className="text-base font-semibold">Payment Option</Label>
-              <RadioGroup
-                value={form.watch('paymentOption')}
-                onValueChange={(value) => form.setValue('paymentOption', value as PaymentOption)}
-                className="grid grid-cols-2 gap-4"
-              >
-                {paymentOptions.map((option) => (
-                  <div key={option} className="flex items-center space-x-2">
-                    <RadioGroupItem value={option} id={option} />
-                    <Label htmlFor={option}>{getPaymentOptionLabel(option)}</Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </div>
+            {/* Payment Options - Only for FULL_PAYMENT */}
+            {watchedPaymentModality === 'FULL_PAYMENT' && (
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">Payment Option</Label>
+                <RadioGroup
+                  value={form.watch('paymentOption') || ''}
+                  onValueChange={(value) => form.setValue('paymentOption', value as PaymentOption)}
+                  className="grid grid-cols-2 gap-4"
+                >
+                  {paymentOptions.map((option) => (
+                    <div key={option} className="flex items-center space-x-2">
+                      <RadioGroupItem value={option} id={option} />
+                      <Label htmlFor={option}>{getPaymentOptionLabel(option)}</Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </div>
+            )}
 
             {/* Payment Modalities */}
             <div className="space-y-3">
@@ -569,8 +684,8 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
               </div>
             )}
 
-            {/* Transfer Code */}
-            {isTransferCodeRequired() && (
+            {/* Transfer Code - Only for FULL_PAYMENT */}
+            {watchedPaymentModality === 'FULL_PAYMENT' && isTransferCodeRequired() && (
               <div className="space-y-2">
                 <Label htmlFor="transferCode" className="text-base font-semibold text-red-600">
                   Transfer Code (Required - Due Today)
@@ -610,6 +725,13 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
                       <TableHead>Percentage</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Due Date</TableHead>
+                      {(watchedPaymentModality === 'SIXTY_FORTY' || watchedPaymentModality === 'MILESTONE_PAYMENTS') && (
+                        <TableHead>Payment Option</TableHead>
+                      )}
+                      {(watchedPaymentModality === 'SIXTY_FORTY' || watchedPaymentModality === 'MILESTONE_PAYMENTS') && (
+                        <TableHead>Transfer Code</TableHead>
+                      )}
+                      <TableHead>Status</TableHead>
                       {watchedPaymentModality === 'MILESTONE_PAYMENTS' && (
                         <TableHead className="w-20">Actions</TableHead>
                       )}
@@ -636,7 +758,16 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
                                 step="0.01"
                                 min="0"
                                 max="100"
-                                {...form.register(`installments.${index}.percentage`)}
+                                {...form.register(`installments.${index}.percentage`, {
+                                  valueAsNumber: true,
+                                  onChange: (e) => {
+                                    const value = parseFloat(e.target.value) || 0;
+                                    form.setValue(`installments.${index}.percentage`, value);
+                                    // Trigger recalculation of amount
+                                    const amount = (servicesTotal * value) / 100;
+                                    form.setValue(`installments.${index}.amount`, amount);
+                                  }
+                                })}
                                 className="w-20"
                               />
                               <span>%</span>
@@ -655,6 +786,60 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
                             className="w-40"
                           />
                         </TableCell>
+                        
+                        {/* Payment Option for SIXTY_FORTY and MILESTONE_PAYMENTS */}
+                        {(watchedPaymentModality === 'SIXTY_FORTY' || watchedPaymentModality === 'MILESTONE_PAYMENTS') && (
+                          <TableCell>
+                            <Select
+                              value={form.watch(`installments.${index}.paymentOption`) || ''}
+                              onValueChange={(value) => form.setValue(`installments.${index}.paymentOption`, value as PaymentOption)}
+                            >
+                              <SelectTrigger className="w-32">
+                                <SelectValue placeholder="Select" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {paymentOptions.map((option) => (
+                                  <SelectItem key={option} value={option}>
+                                    {getPaymentOptionLabel(option)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        )}
+                        
+                        {/* Transfer Code for SIXTY_FORTY and MILESTONE_PAYMENTS */}
+                        {(watchedPaymentModality === 'SIXTY_FORTY' || watchedPaymentModality === 'MILESTONE_PAYMENTS') && (
+                          <TableCell>
+                            <Input
+                              placeholder={isTransferCodeRequired(index) ? "Required" : "Optional"}
+                              {...form.register(`installments.${index}.transferCode`)}
+                              className={isTransferCodeRequired(index) ? "border-red-300 focus:border-red-500" : ""}
+                              disabled={form.watch(`installments.${index}.paymentOption`) !== 'BANK_TRANSFER'}
+                            />
+                          </TableCell>
+                        )}
+
+                        {/* Status Column */}
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              checked={form.watch(`installments.${index}.status`) === 'PAID'}
+                              onCheckedChange={(checked) => {
+                                form.setValue(`installments.${index}.status`, checked ? 'PAID' : 'PENDING');
+                              }}
+                            />
+                            <span className={`text-sm ${
+                              form.watch(`installments.${index}.status`) === 'PAID' 
+                                ? 'text-green-600 font-medium' 
+                                : 'text-orange-600'
+                            }`}>
+                              {getStatusLabel(form.watch(`installments.${index}.status`) as InstallmentStatus)}
+                            </span>
+                            {getStatusIcon(form.watch(`installments.${index}.status`) as InstallmentStatus)}
+                          </div>
+                        </TableCell>
+                        
                         {watchedPaymentModality === 'MILESTONE_PAYMENTS' && (
                           <TableCell>
                             {fields.length > 1 && (
@@ -680,6 +865,13 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
                       <TableCell className="font-semibold">
                         {formatCurrency(servicesTotal)}
                       </TableCell>
+                      <TableCell></TableCell>
+                      {(watchedPaymentModality === 'SIXTY_FORTY' || watchedPaymentModality === 'MILESTONE_PAYMENTS') && (
+                        <>
+                          <TableCell></TableCell>
+                          <TableCell></TableCell>
+                        </>
+                      )}
                       <TableCell></TableCell>
                       {watchedPaymentModality === 'MILESTONE_PAYMENTS' && (
                         <TableCell></TableCell>
@@ -758,6 +950,8 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
                           <TableHead>Percentage</TableHead>
                           <TableHead>Amount</TableHead>
                           <TableHead>Due Date</TableHead>
+                          <TableHead>Payment Option</TableHead>
+                          <TableHead>Status</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -768,6 +962,24 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
                             <TableCell>{formatCurrency(parseFloat(installment.amount))}</TableCell>
                             <TableCell>
                               {new Date(installment.dueDate).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              {payment.paymentModality === 'FULL_PAYMENT' 
+                                ? getPaymentOptionLabel(payment.paymentOption)
+                                : getPaymentOptionLabel(installment.paymentOption)
+                              }
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                {getStatusIcon(installment.status)}
+                                <span className={`text-sm ${
+                                  installment.status === 'PAID' 
+                                    ? 'text-green-600 font-medium' 
+                                    : 'text-orange-600'
+                                }`}>
+                                  {getStatusLabel(installment.status)}
+                                </span>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}

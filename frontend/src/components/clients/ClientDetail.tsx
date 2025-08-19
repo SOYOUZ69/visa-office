@@ -8,7 +8,7 @@ import { clientsAPI, attachmentsAPI } from '@/lib/api';
 import { Client, Attachment } from '@/types';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { Download, Trash2, Upload, User, Phone, Building2, FileText, Users } from 'lucide-react';
+import { Download, Trash2, Upload, User, Phone, Building2, FileText, Users, Shield, CreditCard, Heart } from 'lucide-react';
 import { ServicesSection } from '@/components/clients/ServicesSection';
 import { PaymentSection } from '@/components/clients/PaymentSection';
 
@@ -188,6 +188,14 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
               </Badge>
             </div>
           </div>
+          <div>
+            <label className="text-sm font-medium text-gray-500">Mineur</label>
+            <div className="mt-1">
+              <Badge className={client.isMinor ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-800'}>
+                {client.isMinor ? 'Oui' : 'Non'}
+              </Badge>
+            </div>
+          </div>
           {client.notes && (
             <div>
               <label className="text-sm font-medium text-gray-500">Notes</label>
@@ -196,6 +204,43 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Guardian Information */}
+      {client.isMinor && (client.guardianFullName || client.guardianCIN || client.guardianRelationship) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Shield className="h-5 w-5" />
+              <span>Guardian Information</span>
+            </CardTitle>
+            <CardDescription>
+              Information du tuteur légal (client mineur)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {client.guardianFullName && (
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Nom complet du tuteur</label>
+                  <p className="text-lg font-semibold">{client.guardianFullName}</p>
+                </div>
+              )}
+              {client.guardianCIN && (
+                <div>
+                  <label className="text-sm font-medium text-gray-500">CIN du tuteur</label>
+                  <p className="text-lg">{client.guardianCIN}</p>
+                </div>
+              )}
+              {client.guardianRelationship && (
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Relation</label>
+                  <p className="text-lg">{client.guardianRelationship}</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Phone Numbers */}
       {client.phoneNumbers.length > 0 && (
@@ -255,11 +300,28 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
             <div className="space-y-4">
               {client.familyMembers.map((member) => (
                 <div key={member.id} className="border rounded-lg p-4">
-                  <div className="font-semibold">{member.fullName}</div>
-                  <div className="text-gray-600">{member.relationship}</div>
-                  {member.age && (
-                    <div className="text-gray-600">Age: {member.age}</div>
-                  )}
+                  <div className="font-semibold flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    {member.fullName}
+                  </div>
+                  <div className="text-gray-600 space-y-1 mt-2">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-3 w-3" />
+                      <span>Passport: {member.passportNumber}</span>
+                    </div>
+                    {member.relationship && (
+                      <div className="flex items-center gap-2">
+                        <Heart className="h-3 w-3" />
+                        <span>Relationship: {member.relationship}</span>
+                      </div>
+                    )}
+                    {member.age && (
+                      <div className="flex items-center gap-2">
+                        <span className="h-3 w-3 flex items-center justify-center text-xs rounded-full bg-gray-200">#</span>
+                        <span>Age: {member.age}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

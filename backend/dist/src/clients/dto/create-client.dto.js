@@ -14,6 +14,7 @@ const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 const swagger_1 = require("@nestjs/swagger");
 const client_1 = require("@prisma/client");
+const create_family_member_dto_1 = require("./create-family-member.dto");
 class PhoneNumberDto {
     number;
 }
@@ -51,8 +52,13 @@ class CreateClientDto {
     destination;
     visaType;
     notes;
+    isMinor;
+    guardianFullName;
+    guardianCIN;
+    guardianRelationship;
     phoneNumbers;
     employers;
+    familyMembers;
 }
 exports.CreateClientDto = CreateClientDto;
 __decorate([
@@ -108,6 +114,33 @@ __decorate([
     __metadata("design:type", String)
 ], CreateClientDto.prototype, "notes", void 0);
 __decorate([
+    (0, swagger_1.ApiProperty)({ example: false, required: false, description: 'Indicates if the client is a minor' }),
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], CreateClientDto.prototype, "isMinor", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'Jane Doe', required: false, description: 'Guardian full name (required if clientType=INDIVIDUAL and isMinor=true)' }),
+    (0, class_validator_1.ValidateIf)(o => o.clientType === client_1.ClientType.INDIVIDUAL && o.isMinor === true),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateClientDto.prototype, "guardianFullName", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'AB123456', required: false, description: 'Guardian CIN (required if clientType=INDIVIDUAL and isMinor=true)' }),
+    (0, class_validator_1.ValidateIf)(o => o.clientType === client_1.ClientType.INDIVIDUAL && o.isMinor === true),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateClientDto.prototype, "guardianCIN", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ example: 'Mother', required: false, description: 'Guardian relationship (required if clientType=INDIVIDUAL and isMinor=true)' }),
+    (0, class_validator_1.ValidateIf)(o => o.clientType === client_1.ClientType.INDIVIDUAL && o.isMinor === true),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateClientDto.prototype, "guardianRelationship", void 0);
+__decorate([
     (0, swagger_1.ApiProperty)({ type: [PhoneNumberDto], required: false }),
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.ValidateNested)({ each: true }),
@@ -123,4 +156,16 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Array)
 ], CreateClientDto.prototype, "employers", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        type: [create_family_member_dto_1.CreateFamilyMemberDto],
+        required: false,
+        description: 'Family members (required for FAMILY and GROUP client types)'
+    }),
+    (0, class_validator_1.ValidateIf)(o => o.clientType === client_1.ClientType.FAMILY || o.clientType === client_1.ClientType.GROUP),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => create_family_member_dto_1.CreateFamilyMemberDto),
+    __metadata("design:type", Array)
+], CreateClientDto.prototype, "familyMembers", void 0);
 //# sourceMappingURL=create-client.dto.js.map

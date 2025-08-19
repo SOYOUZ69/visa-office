@@ -5,6 +5,7 @@ import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { QueryClientDto } from './dto/query-client.dto';
 import { CreateFamilyMemberDto } from './dto/create-family-member.dto';
+import { CreatePhoneCallClientDto } from './dto/create-phone-call-client.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/guards/roles.guard';
@@ -26,6 +27,18 @@ export class ClientsController {
   @ApiResponse({ status: 403, description: 'Forbidden - admin role required' })
   create(@Body() createClientDto: CreateClientDto) {
     return this.clientsService.create(createClientDto);
+  }
+
+  @Post('phone-call')
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a Phone Call client with services and payment in one transaction' })
+  @ApiResponse({ status: 201, description: 'Phone Call client created successfully with services and payment' })
+  @ApiResponse({ status: 400, description: 'Bad request - validation error' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - admin role required' })
+  createPhoneCallClient(@Body() createPhoneCallClientDto: CreatePhoneCallClientDto) {
+    return this.clientsService.createPhoneCallClient(createPhoneCallClientDto);
   }
 
   @Get()

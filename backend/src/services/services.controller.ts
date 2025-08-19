@@ -6,6 +6,7 @@ import {
   Delete,
   Param,
   Body,
+  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -15,6 +16,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiParam,
+  ApiQuery,
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { ServicesService } from './services.service';
@@ -25,7 +27,7 @@ import { ServiceResponseDto } from './dto/service-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
+import { UserRole, ServiceType } from '@prisma/client';
 import { ServiceItem } from '@prisma/client';
 
 @ApiTags('Services')
@@ -112,5 +114,54 @@ export class ServicesController {
   @Roles(UserRole.ADMIN)
   async deleteService(@Param('serviceId') serviceId: string): Promise<void> {
     return this.servicesService.deleteService(serviceId);
+  }
+
+  @Get('services/last-price')
+  @ApiOperation({ summary: 'Get the last price for a specific service type' })
+  @ApiQuery({ 
+    name: 'serviceType', 
+    description: 'Service type to get the last price for',
+    enum: ServiceType
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Last price for the service type',
+    schema: {
+      type: 'object',
+      properties: {
+        unitPrice: {
+          type: 'number',
+          nullable: true,
+          description: 'Last unit price used for this service type, or null if not found'
+        }
+      }
+    }
+  })
+  @Roles(UserRole.ADMIN, UserRole.USER)
+  async getLastPrice(@Query('serviceType') serviceType: ServiceType): Promise<{ unitPrice: number | null }> {
+    return this.servicesService.getLastPrice(serviceType);
+  }
+
+  @Post('services/last-prices')
+  @ApiOperation({ summary: 'Get the last prices for multiple service types (batch)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Last prices for the requested service types',
+    schema: {
+      type: 'object',
+      additionalProperties: {
+        type: 'number',
+        nullable: true
+      },
+      example: {
+        'TRANSLATION': 50.00,
+        'ASSURANCE': 100.00,
+        'VISA_APPLICATION': null
+      }
+    }
+  })
+  @Roles(UserRole.ADMIN, UserRole.USER)
+  async getLastPrices(@Body() serviceTypes: ServiceType[]): Promise<{ [key: string]: number | null }> {
+    return this.servicesService.getLastPrices(serviceTypes);
   }
 }

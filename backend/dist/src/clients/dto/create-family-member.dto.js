@@ -10,30 +10,53 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateFamilyMemberDto = void 0;
-const class_validator_1 = require("class-validator");
 const swagger_1 = require("@nestjs/swagger");
+const class_validator_1 = require("class-validator");
 class CreateFamilyMemberDto {
     fullName;
+    passportNumber;
     relationship;
     age;
 }
 exports.CreateFamilyMemberDto = CreateFamilyMemberDto;
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: 'Jane Doe' }),
+    (0, swagger_1.ApiProperty)({
+        description: 'Full name of the family member',
+        example: 'John Doe'
+    }),
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateFamilyMemberDto.prototype, "fullName", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ example: 'Spouse' }),
+    (0, swagger_1.ApiProperty)({
+        description: 'Passport number of the family member',
+        example: 'AB1234567'
+    }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateFamilyMemberDto.prototype, "passportNumber", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: 'Relationship to the main client',
+        example: 'Spouse',
+        required: false
+    }),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateFamilyMemberDto.prototype, "relationship", void 0);
 __decorate([
-    (0, swagger_1.ApiPropertyOptional)({ example: 30, minimum: 0, maximum: 120 }),
+    (0, swagger_1.ApiProperty)({
+        description: 'Age of the family member',
+        minimum: 0,
+        example: 35,
+        required: false
+    }),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     (0, class_validator_1.Min)(0),
-    (0, class_validator_1.Max)(120),
-    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], CreateFamilyMemberDto.prototype, "age", void 0);
 //# sourceMappingURL=create-family-member.dto.js.map

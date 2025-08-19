@@ -12,11 +12,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreatePaymentInstallmentDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
+const client_1 = require("@prisma/client");
 class CreatePaymentInstallmentDto {
     description;
     percentage;
     amount;
     dueDate;
+    paymentOption;
+    transferCode;
+    status;
 }
 exports.CreatePaymentInstallmentDto = CreatePaymentInstallmentDto;
 __decorate([
@@ -58,4 +62,36 @@ __decorate([
     (0, class_validator_1.IsDateString)(),
     __metadata("design:type", String)
 ], CreatePaymentInstallmentDto.prototype, "dueDate", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: 'Payment option for this installment (for non-FULL_PAYMENT modalities)',
+        enum: client_1.PaymentOption,
+        example: client_1.PaymentOption.CASH,
+        required: false
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(client_1.PaymentOption),
+    __metadata("design:type", String)
+], CreatePaymentInstallmentDto.prototype, "paymentOption", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: 'Transfer code for this installment (required if paymentOption is BANK_TRANSFER and due today)',
+        example: 'TRF123456',
+        required: false
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreatePaymentInstallmentDto.prototype, "transferCode", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: 'Payment status for this installment',
+        enum: client_1.InstallmentStatus,
+        example: client_1.InstallmentStatus.PENDING,
+        required: false
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(client_1.InstallmentStatus),
+    __metadata("design:type", String)
+], CreatePaymentInstallmentDto.prototype, "status", void 0);
 //# sourceMappingURL=create-payment-installment.dto.js.map

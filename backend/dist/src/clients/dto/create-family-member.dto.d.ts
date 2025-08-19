@@ -1,5 +1,6 @@
 export declare class CreateFamilyMemberDto {
     fullName: string;
-    relationship: string;
+    passportNumber: string;
+    relationship?: string;
     age?: number;
 }

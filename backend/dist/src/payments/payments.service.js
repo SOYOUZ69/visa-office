@@ -64,6 +64,9 @@ let PaymentsService = class PaymentsService {
                         percentage: installment.percentage,
                         amount: installment.amount,
                         dueDate: new Date(installment.dueDate),
+                        paymentOption: installment.paymentOption,
+                        transferCode: installment.transferCode,
+                        status: installment.status || 'PENDING',
                     })),
                 },
             },
@@ -116,6 +119,9 @@ let PaymentsService = class PaymentsService {
                         percentage: installment.percentage,
                         amount: installment.amount,
                         dueDate: new Date(installment.dueDate),
+                        paymentOption: installment.paymentOption,
+                        transferCode: installment.transferCode,
+                        status: installment.status || 'PENDING',
                     })),
                 });
             }

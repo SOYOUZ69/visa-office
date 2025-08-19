@@ -39,9 +39,12 @@ export interface Attachment {
 export interface FamilyMember {
   id: string;
   fullName: string;
-  relationship: string;
+  passportNumber: string;
+  relationship?: string;
   age?: number;
   clientId: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Client {
@@ -56,6 +59,10 @@ export interface Client {
   destination: string;
   visaType: string;
   notes?: string;
+  isMinor: boolean;
+  guardianFullName?: string;
+  guardianCIN?: string;
+  guardianRelationship?: string;
   createdAt: string;
   updatedAt: string;
   phoneNumbers: PhoneNumber[];
@@ -84,6 +91,10 @@ export interface CreateClientData {
   destination: string;
   visaType: string;
   notes?: string;
+  isMinor?: boolean;
+  guardianFullName?: string;
+  guardianCIN?: string;
+  guardianRelationship?: string;
   phoneNumbers?: { number: string }[];
   employers?: { name: string; position?: string }[];
 }
@@ -131,6 +142,7 @@ export interface UpdateServiceData {
 // Payment Types
 export type PaymentOption = 'BANK_TRANSFER' | 'CHEQUE' | 'POST' | 'CASH';
 export type PaymentModality = 'FULL_PAYMENT' | 'SIXTY_FORTY' | 'MILESTONE_PAYMENTS';
+export type InstallmentStatus = 'PENDING' | 'PAID';
 
 export interface PaymentInstallment {
   id: string;
@@ -138,6 +150,9 @@ export interface PaymentInstallment {
   percentage: string;
   amount: string;
   dueDate: string;
+  paymentOption?: PaymentOption;
+  transferCode?: string;
+  status: InstallmentStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -146,7 +161,7 @@ export interface Payment {
   id: string;
   clientId: string;
   totalAmount: string;
-  paymentOption: PaymentOption;
+  paymentOption?: PaymentOption;
   paymentModality: PaymentModality;
   transferCode?: string;
   installments: PaymentInstallment[];
@@ -159,11 +174,21 @@ export interface CreatePaymentInstallmentData {
   percentage: number;
   amount: number;
   dueDate: string;
+  paymentOption?: PaymentOption;
+  transferCode?: string;
+  status?: InstallmentStatus;
+}
+
+export interface CreateFamilyMemberData {
+  fullName: string;
+  passportNumber: string;
+  relationship?: string;
+  age?: number;
 }
 
 export interface CreatePaymentData {
   totalAmount: number;
-  paymentOption: PaymentOption;
+  paymentOption?: PaymentOption;
   paymentModality: PaymentModality;
   transferCode?: string;
   installments: CreatePaymentInstallmentData[];
