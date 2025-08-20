@@ -48,22 +48,34 @@ export class PaymentsController {
     return this.paymentsService.getClientPayments(clientId);
   }
 
-  @Post('clients/:id/payment')
-  @ApiOperation({ summary: 'Create a payment for a client' })
-  @ApiParam({ name: 'id', description: 'Client ID' })
+  @Post('payments')
+  @ApiOperation({ summary: 'Create a payment for a dossier' })
   @ApiResponse({
     status: 201,
     description: 'Payment created successfully',
     type: PaymentResponseDto,
   })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
-  @ApiResponse({ status: 404, description: 'Client not found' })
+  @ApiResponse({ status: 404, description: 'Dossier not found' })
   @Roles(UserRole.ADMIN)
   async createPayment(
-    @Param('id') clientId: string,
     @Body() createPaymentDto: CreatePaymentDto,
   ): Promise<Payment & { installments: PaymentInstallment[] }> {
-    return this.paymentsService.createPayment(clientId, createPaymentDto);
+    return this.paymentsService.createPayment(createPaymentDto);
+  }
+
+  @Get('dossiers/:id/payments')
+  @ApiOperation({ summary: 'Get all payments for a dossier' })
+  @ApiParam({ name: 'id', description: 'Dossier ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of payments for the dossier',
+    type: [PaymentResponseDto],
+  })
+  @ApiResponse({ status: 404, description: 'Dossier not found' })
+  @Roles(UserRole.ADMIN, UserRole.USER)
+  async getDossierPayments(@Param('id') dossierId: string): Promise<(Payment & { installments: PaymentInstallment[] })[]> {
+    return this.paymentsService.getDossierPayments(dossierId);
   }
 
   @Patch('payments/:paymentId')

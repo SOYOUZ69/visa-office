@@ -8,18 +8,19 @@ import { Payment, PaymentInstallment } from '@prisma/client';
 export class PaymentsService {
   constructor(private prisma: PrismaService) {}
 
-  async getClientPayments(clientId: string): Promise<(Payment & { installments: PaymentInstallment[] })[]> {
-    // Verify client exists
-    const client = await this.prisma.client.findUnique({
-      where: { id: clientId },
+  async getDossierPayments(dossierId: string): Promise<(Payment & { installments: PaymentInstallment[] })[]> {
+    // Verify dossier exists
+    const dossier = await this.prisma.dossier.findUnique({
+      where: { id: dossierId },
+      include: { client: true },
     });
 
-    if (!client) {
-      throw new NotFoundException(`Client with ID ${clientId} not found`);
+    if (!dossier) {
+      throw new NotFoundException(`Dossier with ID ${dossierId} not found`);
     }
 
     return this.prisma.payment.findMany({
-      where: { clientId },
+      where: { dossierId },
       include: {
         installments: {
           orderBy: { dueDate: 'asc' }
@@ -29,17 +30,43 @@ export class PaymentsService {
     });
   }
 
-  async createPayment(
-    clientId: string,
-    createPaymentDto: CreatePaymentDto,
-  ): Promise<Payment & { installments: PaymentInstallment[] }> {
+  async getClientPayments(clientId: string): Promise<(Payment & { installments: PaymentInstallment[] })[]> {
     // Verify client exists
     const client = await this.prisma.client.findUnique({
       where: { id: clientId },
+      include: {
+        dossiers: {
+          include: {
+            payments: {
+              include: {
+                installments: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!client) {
       throw new NotFoundException(`Client with ID ${clientId} not found`);
+    }
+
+    // Flatten all payments from all dossiers
+    const allPayments = client.dossiers.flatMap(dossier => dossier.payments);
+    return allPayments.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async createPayment(
+    createPaymentDto: CreatePaymentDto,
+  ): Promise<Payment & { installments: PaymentInstallment[] }> {
+    // Verify dossier exists
+    const dossier = await this.prisma.dossier.findUnique({
+      where: { id: createPaymentDto.dossierId },
+      include: { client: true },
+    });
+
+    if (!dossier) {
+      throw new NotFoundException(`Dossier with ID ${createPaymentDto.dossierId} not found`);
     }
 
     // Validate that percentages sum to 100%
@@ -66,7 +93,7 @@ export class PaymentsService {
 
     return this.prisma.payment.create({
       data: {
-        clientId,
+        dossierId: createPaymentDto.dossierId,
         totalAmount: createPaymentDto.totalAmount,
         paymentOption: createPaymentDto.paymentOption,
         paymentModality: createPaymentDto.paymentModality,

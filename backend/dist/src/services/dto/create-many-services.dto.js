@@ -13,14 +13,23 @@ exports.CreateManyServicesDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
-const create_service_dto_1 = require("./create-service.dto");
+const create_service_item_dto_1 = require("./create-service-item.dto");
 class CreateManyServicesDto {
+    dossierId;
     items;
 }
 exports.CreateManyServicesDto = CreateManyServicesDto;
 __decorate([
     (0, swagger_1.ApiProperty)({
-        type: [create_service_dto_1.CreateServiceDto],
+        description: 'ID of the dossier these services belong to',
+        example: 'clxxxxx'
+    }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateManyServicesDto.prototype, "dossierId", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        type: [create_service_item_dto_1.CreateServiceItemDto],
         description: 'Array of services to create',
         example: [
             {
@@ -38,7 +47,7 @@ __decorate([
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.ArrayMinSize)(1, { message: 'At least one service item is required' }),
     (0, class_validator_1.ValidateNested)({ each: true }),
-    (0, class_transformer_1.Type)(() => create_service_dto_1.CreateServiceDto),
+    (0, class_transformer_1.Type)(() => create_service_item_dto_1.CreateServiceItemDto),
     __metadata("design:type", Array)
 ], CreateManyServicesDto.prototype, "items", void 0);
 //# sourceMappingURL=create-many-services.dto.js.map

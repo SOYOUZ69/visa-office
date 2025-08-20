@@ -147,18 +147,50 @@ export const attachmentsAPI = {
   },
 };
 
+// Dossiers API
+export const dossiersAPI = {
+  getAll: async () => {
+    const response = await api.get('/api/v1/dossiers');
+    return response.data;
+  },
+  getByClient: async (clientId: string) => {
+    const response = await api.get(`/api/v1/dossiers?clientId=${clientId}`);
+    return response.data;
+  },
+  getById: async (id: string) => {
+    const response = await api.get(`/api/v1/dossiers/${id}`);
+    return response.data;
+  },
+  create: async (data: any) => {
+    const response = await api.post('/api/v1/dossiers', data);
+    return response.data;
+  },
+  update: async (id: string, data: any) => {
+    const response = await api.patch(`/api/v1/dossiers/${id}`, data);
+    return response.data;
+  },
+  delete: async (id: string) => {
+    const response = await api.delete(`/api/v1/dossiers/${id}`);
+    return response.data;
+  },
+};
+
 // Services API
 export const servicesAPI = {
   getClientServices: async (clientId: string) => {
     const response = await api.get(`/api/v1/clients/${clientId}/services`);
     return response.data;
   },
-  createService: async (clientId: string, data: any) => {
-    const response = await api.post(`/api/v1/clients/${clientId}/service`, data);
+  getDossierServices: async (dossierId: string) => {
+    const response = await api.get(`/api/v1/dossiers/${dossierId}/services`);
     return response.data;
   },
-  createManyServices: async (clientId: string, data: any) => {
-    const response = await api.post(`/api/v1/clients/${clientId}/services`, data);
+  createService: async (data: any) => {
+    const response = await api.post('/api/v1/services', data);
+    return response.data;
+  },
+  createManyServices: async (data: any) => {
+    const response = await api.post('/api/v1/services/bulk', data);
     return response.data;
   },
   updateService: async (serviceId: string, data: any) => {
@@ -185,8 +217,12 @@ export const paymentsAPI = {
     const response = await api.get(`/api/v1/clients/${clientId}/payments`);
     return response.data;
   },
-  createPayment: async (clientId: string, data: any) => {
-    const response = await api.post(`/api/v1/clients/${clientId}/payment`, data);
+  getDossierPayments: async (dossierId: string) => {
+    const response = await api.get(`/api/v1/dossiers/${dossierId}/payments`);
+    return response.data;
+  },
+  createPayment: async (data: any) => {
+    const response = await api.post('/api/v1/payments', data);
     return response.data;
   },
   updatePayment: async (paymentId: string, data: any) => {

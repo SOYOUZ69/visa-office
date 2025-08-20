@@ -5,10 +5,13 @@ import { Payment, PaymentInstallment } from '@prisma/client';
 export declare class PaymentsService {
     private prisma;
     constructor(prisma: PrismaService);
+    getDossierPayments(dossierId: string): Promise<(Payment & {
+        installments: PaymentInstallment[];
+    })[]>;
     getClientPayments(clientId: string): Promise<(Payment & {
         installments: PaymentInstallment[];
     })[]>;
-    createPayment(clientId: string, createPaymentDto: CreatePaymentDto): Promise<Payment & {
+    createPayment(createPaymentDto: CreatePaymentDto): Promise<Payment & {
         installments: PaymentInstallment[];
     }>;
     updatePayment(paymentId: string, updatePaymentDto: UpdatePaymentDto): Promise<Payment & {

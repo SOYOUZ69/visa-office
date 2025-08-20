@@ -6,6 +6,12 @@ import { CreatePaymentInstallmentDto } from './create-payment-installment.dto';
 
 export class CreatePaymentDto {
   @ApiProperty({
+    description: 'ID of the dossier this payment belongs to',
+    example: 'clxxxxx'
+  })
+  @IsString()
+  dossierId: string;
+  @ApiProperty({
     description: 'Total amount for all services',
     minimum: 0,
     example: 400.00

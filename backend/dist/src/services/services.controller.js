@@ -32,11 +32,14 @@ let ServicesController = class ServicesController {
     async getClientServices(clientId) {
         return this.servicesService.getClientServices(clientId);
     }
-    async createService(clientId, createServiceDto) {
-        return this.servicesService.createService(clientId, createServiceDto);
+    async getDossierServices(dossierId) {
+        return this.servicesService.getDossierServices(dossierId);
     }
-    async createManyServices(clientId, createManyServicesDto) {
-        return this.servicesService.createManyServices(clientId, createManyServicesDto);
+    async createService(createServiceDto) {
+        return this.servicesService.createService(createServiceDto);
+    }
+    async createManyServices(createManyServicesDto) {
+        return this.servicesService.createManyServices(createManyServicesDto);
     }
     async updateService(serviceId, updateServiceDto) {
         return this.servicesService.updateService(serviceId, updateServiceDto);
@@ -69,39 +72,51 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], ServicesController.prototype, "getClientServices", null);
 __decorate([
-    (0, common_1.Post)('clients/:id/service'),
-    (0, swagger_1.ApiOperation)({ summary: 'Create a single service for a client' }),
-    (0, swagger_1.ApiParam)({ name: 'id', description: 'Client ID' }),
+    (0, common_1.Get)('dossiers/:id/services'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get all services for a dossier' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Dossier ID' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'List of services for the dossier',
+        type: [service_response_dto_1.ServiceResponseDto],
+    }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Dossier not found' }),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN, client_1.UserRole.USER),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], ServicesController.prototype, "getDossierServices", null);
+__decorate([
+    (0, common_1.Post)('services'),
+    (0, swagger_1.ApiOperation)({ summary: 'Create a single service for a dossier' }),
     (0, swagger_1.ApiResponse)({
         status: 201,
         description: 'Service created successfully',
         type: service_response_dto_1.ServiceResponseDto,
     }),
     (0, swagger_1.ApiResponse)({ status: 400, description: 'Invalid input data' }),
-    (0, swagger_1.ApiResponse)({ status: 404, description: 'Client not found' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Dossier not found' }),
     (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN),
-    __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Body)()),
+    __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, create_service_dto_1.CreateServiceDto]),
+    __metadata("design:paramtypes", [create_service_dto_1.CreateServiceDto]),
     __metadata("design:returntype", Promise)
 ], ServicesController.prototype, "createService", null);
 __decorate([
-    (0, common_1.Post)('clients/:id/services'),
-    (0, swagger_1.ApiOperation)({ summary: 'Create multiple services for a client (bulk)' }),
-    (0, swagger_1.ApiParam)({ name: 'id', description: 'Client ID' }),
+    (0, common_1.Post)('services/bulk'),
+    (0, swagger_1.ApiOperation)({ summary: 'Create multiple services for a dossier (bulk)' }),
     (0, swagger_1.ApiResponse)({
         status: 201,
         description: 'Services created successfully',
         type: [service_response_dto_1.ServiceResponseDto],
     }),
     (0, swagger_1.ApiResponse)({ status: 400, description: 'Invalid input data' }),
-    (0, swagger_1.ApiResponse)({ status: 404, description: 'Client not found' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Dossier not found' }),
     (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN),
-    __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Body)()),
+    __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, create_many_services_dto_1.CreateManyServicesDto]),
+    __metadata("design:paramtypes", [create_many_services_dto_1.CreateManyServicesDto]),
     __metadata("design:returntype", Promise)
 ], ServicesController.prototype, "createManyServices", null);
 __decorate([

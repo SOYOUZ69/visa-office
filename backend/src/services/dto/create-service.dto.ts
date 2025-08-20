@@ -1,8 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsPositive, IsNumber, Min } from 'class-validator';
+import { IsEnum, IsInt, IsPositive, IsNumber, Min, IsString } from 'class-validator';
 import { ServiceType } from '@prisma/client';
 
 export class CreateServiceDto {
+  @ApiProperty({
+    description: 'ID of the dossier this service belongs to',
+    example: 'clxxxxx'
+  })
+  @IsString()
+  dossierId: string;
   @ApiProperty({
     enum: ServiceType,
     description: 'Type of service',

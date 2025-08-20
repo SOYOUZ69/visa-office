@@ -9,6 +9,7 @@ import { ClientsModule } from './clients/clients.module';
 import { AttachmentsModule } from './attachments/attachments.module';
 import { ServicesModule } from './services/services.module';
 import { PaymentsModule } from './payments/payments.module';
+import { DossiersModule } from './dossiers/dossiers.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { PaymentsModule } from './payments/payments.module';
     AttachmentsModule,
     ServicesModule,
     PaymentsModule,
+    DossiersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

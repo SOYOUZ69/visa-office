@@ -31,8 +31,11 @@ let PaymentsController = class PaymentsController {
     async getClientPayments(clientId) {
         return this.paymentsService.getClientPayments(clientId);
     }
-    async createPayment(clientId, createPaymentDto) {
-        return this.paymentsService.createPayment(clientId, createPaymentDto);
+    async createPayment(createPaymentDto) {
+        return this.paymentsService.createPayment(createPaymentDto);
+    }
+    async getDossierPayments(dossierId) {
+        return this.paymentsService.getDossierPayments(dossierId);
     }
     async updatePayment(paymentId, updatePaymentDto) {
         return this.paymentsService.updatePayment(paymentId, updatePaymentDto);
@@ -59,23 +62,37 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], PaymentsController.prototype, "getClientPayments", null);
 __decorate([
-    (0, common_1.Post)('clients/:id/payment'),
-    (0, swagger_1.ApiOperation)({ summary: 'Create a payment for a client' }),
-    (0, swagger_1.ApiParam)({ name: 'id', description: 'Client ID' }),
+    (0, common_1.Post)('payments'),
+    (0, swagger_1.ApiOperation)({ summary: 'Create a payment for a dossier' }),
     (0, swagger_1.ApiResponse)({
         status: 201,
         description: 'Payment created successfully',
         type: payment_response_dto_1.PaymentResponseDto,
     }),
     (0, swagger_1.ApiResponse)({ status: 400, description: 'Invalid input data' }),
-    (0, swagger_1.ApiResponse)({ status: 404, description: 'Client not found' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Dossier not found' }),
     (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN),
-    __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Body)()),
+    __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, create_payment_dto_1.CreatePaymentDto]),
+    __metadata("design:paramtypes", [create_payment_dto_1.CreatePaymentDto]),
     __metadata("design:returntype", Promise)
 ], PaymentsController.prototype, "createPayment", null);
+__decorate([
+    (0, common_1.Get)('dossiers/:id/payments'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get all payments for a dossier' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Dossier ID' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'List of payments for the dossier',
+        type: [payment_response_dto_1.PaymentResponseDto],
+    }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Dossier not found' }),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN, client_1.UserRole.USER),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], PaymentsController.prototype, "getDossierPayments", null);
 __decorate([
     (0, common_1.Patch)('payments/:paymentId'),
     (0, swagger_1.ApiOperation)({ summary: 'Update a payment' }),

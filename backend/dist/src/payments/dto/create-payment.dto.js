@@ -16,6 +16,7 @@ const class_transformer_1 = require("class-transformer");
 const client_1 = require("@prisma/client");
 const create_payment_installment_dto_1 = require("./create-payment-installment.dto");
 class CreatePaymentDto {
+    dossierId;
     totalAmount;
     paymentOption;
     paymentModality;
@@ -23,6 +24,14 @@ class CreatePaymentDto {
     installments;
 }
 exports.CreatePaymentDto = CreatePaymentDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: 'ID of the dossier this payment belongs to',
+        example: 'clxxxxx'
+    }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreatePaymentDto.prototype, "dossierId", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
         description: 'Total amount for all services',

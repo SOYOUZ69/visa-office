@@ -8,9 +8,12 @@ export declare class PaymentsController {
     getClientPayments(clientId: string): Promise<(Payment & {
         installments: PaymentInstallment[];
     })[]>;
-    createPayment(clientId: string, createPaymentDto: CreatePaymentDto): Promise<Payment & {
+    createPayment(createPaymentDto: CreatePaymentDto): Promise<Payment & {
         installments: PaymentInstallment[];
     }>;
+    getDossierPayments(dossierId: string): Promise<(Payment & {
+        installments: PaymentInstallment[];
+    })[]>;
     updatePayment(paymentId: string, updatePaymentDto: UpdatePaymentDto): Promise<Payment & {
         installments: PaymentInstallment[];
     }>;

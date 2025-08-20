@@ -1,4 +1,5 @@
-import { CreateServiceDto } from './create-service.dto';
+import { CreateServiceItemDto } from './create-service-item.dto';
 export declare class CreateManyServicesDto {
-    items: CreateServiceDto[];
+    dossierId: string;
+    items: CreateServiceItemDto[];
 }

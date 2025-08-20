@@ -5,12 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { clientsAPI, attachmentsAPI } from '@/lib/api';
-import { Client, Attachment } from '@/types';
+import { Client, Attachment, Dossier } from '@/types';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { Download, Trash2, Upload, User, Phone, Building2, FileText, Users, Shield, CreditCard, Heart } from 'lucide-react';
 import { ServicesSection } from '@/components/clients/ServicesSection';
 import { PaymentSection } from '@/components/clients/PaymentSection';
+import { DossiersList } from '@/components/clients/DossiersList';
 
 interface ClientDetailProps {
   clientId: string;
@@ -19,6 +20,7 @@ interface ClientDetailProps {
 export function ClientDetail({ clientId }: ClientDetailProps) {
   const [client, setClient] = useState<Client | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [selectedDossier, setSelectedDossier] = useState<Dossier | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const { user } = useAuth();
@@ -394,11 +396,26 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
         </CardContent>
       </Card>
 
-      {/* Services Section */}
-      <ServicesSection clientId={clientId} />
+      {/* Dossiers Section */}
+      <DossiersList 
+        clientId={clientId} 
+        clientName={client.fullName} 
+        onDossierSelect={setSelectedDossier}
+      />
 
-      {/* Payment Section */}
-      <PaymentSection clientId={clientId} />
+      {/* Services Section - Now synchronized with selected dossier */}
+      <ServicesSection 
+        clientId={clientId} 
+        dossierId={selectedDossier?.id}
+        dossierStatus={selectedDossier?.status}
+      />
+
+      {/* Payment Section - Now synchronized with selected dossier */}
+      <PaymentSection 
+        clientId={clientId} 
+        dossierId={selectedDossier?.id}
+        dossierStatus={selectedDossier?.status}
+      />
 
       {/* Timestamps */}
       <Card>

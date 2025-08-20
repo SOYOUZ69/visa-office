@@ -11,12 +11,14 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { paymentsAPI, metaAPI, servicesAPI } from '@/lib/api';
+import { paymentsAPI, metaAPI, servicesAPI, dossiersAPI } from '@/lib/api';
 import { Payment, PaymentOption, PaymentModality, CreatePaymentData, ServiceItem, InstallmentStatus } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Plus, Save, Trash2, Calculator, CreditCard, Edit, CheckCircle, Clock } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { mutate } from 'swr';
+import useSWR from 'swr';
 
 // Validation Schema
 const PaymentInstallmentSchema = z.object({
@@ -60,21 +62,52 @@ type PaymentFormData = z.infer<typeof PaymentFormSchema>;
 
 interface PaymentSectionProps {
   clientId?: string;
+  dossierId?: string;
+  dossierStatus?: string;
   isNewClient?: boolean;
 }
 
-export function PaymentSection({ clientId, isNewClient = false }: PaymentSectionProps) {
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [services, setServices] = useState<ServiceItem[]>([]);
+export function PaymentSection({ clientId, dossierId, dossierStatus, isNewClient = false }: PaymentSectionProps) {
   const [paymentOptions, setPaymentOptions] = useState<PaymentOption[]>([]);
   const [paymentModalities, setPaymentModalities] = useState<PaymentModality[]>([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [servicesTotal, setServicesTotal] = useState(0);
   const [numberOfInstallments, setNumberOfInstallments] = useState(2);
   const [isEditing, setIsEditing] = useState(false);
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const { user } = useAuth();
+
+  // Use SWR to load payments for this dossier
+  const { data: payments = [], isLoading: paymentsLoading } = useSWR(
+    dossierId ? `/dossiers/${dossierId}/payments` : null,
+    () => dossierId ? paymentsAPI.getDossierPayments(dossierId) : null,
+    {
+      revalidateOnFocus: false,
+    }
+  );
+
+  // Use SWR to load services for this dossier 
+  const { data: services = [] } = useSWR(
+    dossierId ? `/dossiers/${dossierId}/services` : null,
+    () => dossierId ? servicesAPI.getDossierServices(dossierId) : null,
+    {
+      revalidateOnFocus: false,
+    }
+  );
+
+  // Helper function to invalidate relevant caches
+  const invalidateRelatedCaches = () => {
+    if (dossierId && clientId) {
+      // Invalidate dossier payments cache
+      mutate(`/dossiers/${dossierId}/payments`);
+      // Invalidate dossier services cache 
+      mutate(`/dossiers/${dossierId}/services`);
+      // Invalidate dossiers list cache (for counters)
+      mutate(`/dossiers/${clientId}`);
+      // Also invalidate by ID for good measure
+      mutate(`/dossier/${dossierId}`);
+    }
+  };
 
   const form = useForm<PaymentFormData>({
     resolver: zodResolver(PaymentFormSchema),
@@ -109,12 +142,46 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
   const currentPayment = editingPaymentId ? payments.find(p => p.id === editingPaymentId) : null;
 
   useEffect(() => {
-    if (clientId && !isNewClient) {
-      loadData();
-    } else {
-      loadMetaData();
+    // Load meta data (options and modalities) only once
+    const loadMetaData = async () => {
+      try {
+        const [optionsData, modalitiesData] = await Promise.all([
+          metaAPI.getPaymentOptions(),
+          metaAPI.getPaymentModalities(),
+        ]);
+        setPaymentOptions(optionsData);
+        setPaymentModalities(modalitiesData);
+      } catch (error) {
+        console.error('Failed to load payment metadata:', error);
+        toast.error('Failed to load payment options');
+      }
+    };
+
+    loadMetaData();
+  }, []);
+
+  // Reset form when dossier changes (Bug B fix)
+  useEffect(() => {
+    if (dossierId) {
+      form.reset({
+        paymentOption: 'CASH',
+        paymentModality: 'FULL_PAYMENT',
+        transferCode: '',
+        installments: [
+          {
+            description: 'Full Payment',
+            percentage: 100,
+            amount: 0,
+            dueDate: '',
+            status: 'PENDING',
+          },
+        ],
+      });
+      setIsEditing(false);
+      setEditingPaymentId(null);
+      setNumberOfInstallments(2);
     }
-  }, [clientId, isNewClient]);
+  }, [dossierId, form]);
 
   // Calculate services total when services change
   useEffect(() => {
@@ -216,16 +283,31 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
 
   const loadData = async () => {
     try {
-      const [paymentsData, servicesData, optionsData, modalitiesData] = await Promise.all([
-        paymentsAPI.getClientPayments(clientId),
-        servicesAPI.getClientServices(clientId),
-        metaAPI.getPaymentOptions(),
-        metaAPI.getPaymentModalities(),
-      ]);
-      setPayments(paymentsData);
-      setServices(servicesData);
-      setPaymentOptions(optionsData);
-      setPaymentModalities(modalitiesData);
+      if (dossierId) {
+        // Load data from the specific dossier
+        const [paymentsData, servicesData, optionsData, modalitiesData] = await Promise.all([
+          paymentsAPI.getDossierPayments(dossierId),
+          servicesAPI.getDossierServices(dossierId),
+          metaAPI.getPaymentOptions(),
+          metaAPI.getPaymentModalities(),
+        ]);
+        
+        setPayments(paymentsData);
+        setServices(servicesData);
+        setPaymentOptions(optionsData);
+        setPaymentModalities(modalitiesData);
+      } else {
+        // Only load meta data if no dossier is selected
+        const [optionsData, modalitiesData] = await Promise.all([
+          metaAPI.getPaymentOptions(),
+          metaAPI.getPaymentModalities(),
+        ]);
+        
+        setPayments([]);
+        setServices([]);
+        setPaymentOptions(optionsData);
+        setPaymentModalities(modalitiesData);
+      }
     } catch (error) {
       console.error('Failed to load payment data:', error);
       toast.error('Failed to load payment data');
@@ -419,15 +501,22 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
         setEditingPaymentId(null);
       } else {
         // Create new payment
-        if (!clientId) {
-          toast.error('Client ID is required');
+        if (!dossierId) {
+          toast.error('No dossier selected. Please select a dossier first.');
           return;
         }
-        await paymentsAPI.createPayment(clientId, payload);
+        
+        // Add dossierId to payload
+        const payloadWithDossier = {
+          ...payload,
+          dossierId: dossierId,
+        };
+        
+        await paymentsAPI.createPayment(payloadWithDossier);
         toast.success('Payment saved successfully');
       }
       
-      loadData(); // Refresh the list
+      invalidateRelatedCaches(); // Invalidate caches to update counters and lists
       
       // Reset form if not editing
       if (!isEditing) {
@@ -460,7 +549,7 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
     try {
       await paymentsAPI.deletePayment(paymentId);
       toast.success('Payment deleted successfully');
-      loadData(); // Refresh the list
+      invalidateRelatedCaches(); // Invalidate caches to update counters and lists
       setIsEditing(false);
       setEditingPaymentId(null);
     } catch (error) {
@@ -523,7 +612,7 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
     });
   };
 
-  if (loading && !isNewClient) {
+  if (paymentsLoading && !isNewClient) {
     return (
       <Card>
         <CardHeader>
@@ -560,6 +649,27 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
     );
   }
 
+  if (!dossierId) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Payment
+          </CardTitle>
+          <CardDescription>
+            Please select a dossier to manage payments
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4 text-gray-500">
+            No dossier selected. Please select a dossier from the list above to view and manage payments.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (servicesTotal === 0) {
     return (
       <Card>
@@ -589,7 +699,7 @@ export function PaymentSection({ clientId, isNewClient = false }: PaymentSection
           Payment
         </CardTitle>
         <CardDescription>
-          Configure payment options and schedule for this client
+          Configure payment options{dossierId ? ` for dossier (#${dossierId.slice(-8).toUpperCase()})` : ' for this client'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">

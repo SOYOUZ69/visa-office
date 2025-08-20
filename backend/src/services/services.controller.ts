@@ -51,40 +51,50 @@ export class ServicesController {
     return this.servicesService.getClientServices(clientId);
   }
 
-  @Post('clients/:id/service')
-  @ApiOperation({ summary: 'Create a single service for a client' })
-  @ApiParam({ name: 'id', description: 'Client ID' })
+  @Get('dossiers/:id/services')
+  @ApiOperation({ summary: 'Get all services for a dossier' })
+  @ApiParam({ name: 'id', description: 'Dossier ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of services for the dossier',
+    type: [ServiceResponseDto],
+  })
+  @ApiResponse({ status: 404, description: 'Dossier not found' })
+  @Roles(UserRole.ADMIN, UserRole.USER)
+  async getDossierServices(@Param('id') dossierId: string): Promise<ServiceItem[]> {
+    return this.servicesService.getDossierServices(dossierId);
+  }
+
+  @Post('services')
+  @ApiOperation({ summary: 'Create a single service for a dossier' })
   @ApiResponse({
     status: 201,
     description: 'Service created successfully',
     type: ServiceResponseDto,
   })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
-  @ApiResponse({ status: 404, description: 'Client not found' })
+  @ApiResponse({ status: 404, description: 'Dossier not found' })
   @Roles(UserRole.ADMIN)
   async createService(
-    @Param('id') clientId: string,
     @Body() createServiceDto: CreateServiceDto,
   ): Promise<ServiceItem> {
-    return this.servicesService.createService(clientId, createServiceDto);
+    return this.servicesService.createService(createServiceDto);
   }
 
-  @Post('clients/:id/services')
-  @ApiOperation({ summary: 'Create multiple services for a client (bulk)' })
-  @ApiParam({ name: 'id', description: 'Client ID' })
+  @Post('services/bulk')
+  @ApiOperation({ summary: 'Create multiple services for a dossier (bulk)' })
   @ApiResponse({
     status: 201,
     description: 'Services created successfully',
     type: [ServiceResponseDto],
   })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
-  @ApiResponse({ status: 404, description: 'Client not found' })
+  @ApiResponse({ status: 404, description: 'Dossier not found' })
   @Roles(UserRole.ADMIN)
   async createManyServices(
-    @Param('id') clientId: string,
     @Body() createManyServicesDto: CreateManyServicesDto,
   ): Promise<ServiceItem[]> {
-    return this.servicesService.createManyServices(clientId, createManyServicesDto);
+    return this.servicesService.createManyServices(createManyServicesDto);
   }
 
   @Patch('services/:serviceId')

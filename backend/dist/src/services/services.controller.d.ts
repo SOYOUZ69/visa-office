@@ -8,8 +8,9 @@ export declare class ServicesController {
     private readonly servicesService;
     constructor(servicesService: ServicesService);
     getClientServices(clientId: string): Promise<ServiceItem[]>;
-    createService(clientId: string, createServiceDto: CreateServiceDto): Promise<ServiceItem>;
-    createManyServices(clientId: string, createManyServicesDto: CreateManyServicesDto): Promise<ServiceItem[]>;
+    getDossierServices(dossierId: string): Promise<ServiceItem[]>;
+    createService(createServiceDto: CreateServiceDto): Promise<ServiceItem>;
+    createManyServices(createManyServicesDto: CreateManyServicesDto): Promise<ServiceItem[]>;
     updateService(serviceId: string, updateServiceDto: UpdateServiceDto): Promise<ServiceItem>;
     deleteService(serviceId: string): Promise<void>;
     getLastPrice(serviceType: ServiceType): Promise<{

@@ -28,25 +28,34 @@ let ClientsService = class ClientsService {
                 throw new common_1.BadRequestException('Family members are required for FAMILY and GROUP client types');
             }
         }
-        return this.prisma.client.create({
-            data: {
-                ...clientData,
-                phoneNumbers: {
-                    create: phoneNumbers || [],
+        return this.prisma.$transaction(async (tx) => {
+            const client = await tx.client.create({
+                data: {
+                    ...clientData,
+                    phoneNumbers: {
+                        create: phoneNumbers || [],
+                    },
+                    employers: {
+                        create: employers || [],
+                    },
+                    familyMembers: {
+                        create: familyMembers || [],
+                    },
                 },
-                employers: {
-                    create: employers || [],
+                include: {
+                    phoneNumbers: true,
+                    employers: true,
+                    attachments: true,
+                    familyMembers: true,
                 },
-                familyMembers: {
-                    create: familyMembers || [],
+            });
+            await tx.dossier.create({
+                data: {
+                    clientId: client.id,
+                    status: client_1.DossierStatus.EN_COURS,
                 },
-            },
-            include: {
-                phoneNumbers: true,
-                employers: true,
-                attachments: true,
-                familyMembers: true,
-            },
+            });
+            return client;
         });
     }
     async findAll(query) {
@@ -76,6 +85,7 @@ let ClientsService = class ClientsService {
                     employers: true,
                     attachments: true,
                     familyMembers: true,
+                    dossiers: true,
                 },
                 orderBy: { updatedAt: 'desc' },
             }),
@@ -99,6 +109,17 @@ let ClientsService = class ClientsService {
                 employers: true,
                 attachments: true,
                 familyMembers: true,
+                dossiers: {
+                    include: {
+                        serviceItems: true,
+                        payments: {
+                            include: {
+                                installments: true,
+                            },
+                        },
+                    },
+                    orderBy: { createdAt: 'desc' },
+                },
             },
         });
         if (!client) {
@@ -220,9 +241,15 @@ let ClientsService = class ClientsService {
                     employers: true,
                 },
             });
+            const dossier = await tx.dossier.create({
+                data: {
+                    clientId: client.id,
+                    status: client_1.DossierStatus.EN_COURS,
+                },
+            });
             const createdServices = await tx.serviceItem.createMany({
                 data: services.map(service => ({
-                    clientId: client.id,
+                    dossierId: dossier.id,
                     serviceType: service.serviceType,
                     quantity: service.quantity,
                     unitPrice: service.unitPrice,
@@ -230,7 +257,7 @@ let ClientsService = class ClientsService {
             });
             const payment = await tx.payment.create({
                 data: {
-                    clientId: client.id,
+                    dossierId: dossier.id,
                     totalAmount: paymentConfig.totalAmount,
                     paymentOption: paymentConfig.paymentOption,
                     paymentModality: paymentConfig.paymentModality,
@@ -255,10 +282,14 @@ let ClientsService = class ClientsService {
                     employers: true,
                     attachments: true,
                     familyMembers: true,
-                    serviceItems: true,
-                    payments: {
+                    dossiers: {
                         include: {
-                            installments: true,
+                            serviceItems: true,
+                            payments: {
+                                include: {
+                                    installments: true,
+                                },
+                            },
                         },
                     },
                 },

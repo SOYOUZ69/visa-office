@@ -1,11 +1,17 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, ArrayMinSize, ValidateNested } from 'class-validator';
+import { IsArray, ArrayMinSize, ValidateNested, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
-import { CreateServiceDto } from './create-service.dto';
+import { CreateServiceItemDto } from './create-service-item.dto';
 
 export class CreateManyServicesDto {
   @ApiProperty({
-    type: [CreateServiceDto],
+    description: 'ID of the dossier these services belong to',
+    example: 'clxxxxx'
+  })
+  @IsString()
+  dossierId: string;
+  @ApiProperty({
+    type: [CreateServiceItemDto],
     description: 'Array of services to create',
     example: [
       {
@@ -23,6 +29,6 @@ export class CreateManyServicesDto {
   @IsArray()
   @ArrayMinSize(1, { message: 'At least one service item is required' })
   @ValidateNested({ each: true })
-  @Type(() => CreateServiceDto)
-  items: CreateServiceDto[];
+  @Type(() => CreateServiceItemDto)
+  items: CreateServiceItemDto[];
 }

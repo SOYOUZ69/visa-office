@@ -9,11 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { servicesAPI, metaAPI } from '@/lib/api';
+import { servicesAPI, metaAPI, dossiersAPI } from '@/lib/api';
 import { ServiceItem, CreateServiceData } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Plus, Save, Trash2, Edit, X } from 'lucide-react';
+import { mutate } from 'swr';
+import useSWR from 'swr';
 
 const ServiceRowSchema = z.object({
   serviceType: z.string().min(1, 'Service type is required'),
@@ -32,15 +34,34 @@ interface ServicesSectionProps {
   isNewClient?: boolean;
 }
 
-export function ServicesSection({ clientId, isNewClient = false }: ServicesSectionProps) {
-  const [services, setServices] = useState<ServiceItem[]>([]);
+export function ServicesSection({ clientId, dossierId, dossierStatus, isNewClient = false }: ServicesSectionProps) {
   const [serviceTypes, setServiceTypes] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [priceLoadingStates, setPriceLoadingStates] = useState<{ [key: number]: boolean }>({});
   const [prefilledPrices, setPrefilledPrices] = useState<{ [key: number]: boolean }>({});
   const [userModifiedPrices, setUserModifiedPrices] = useState<{ [key: number]: boolean }>({});
   const { user } = useAuth();
+
+  // Use SWR to load services for this dossier
+  const { data: services = [], isLoading } = useSWR(
+    dossierId ? `/dossiers/${dossierId}/services` : null,
+    () => dossierId ? servicesAPI.getDossierServices(dossierId) : null,
+    {
+      revalidateOnFocus: false,
+    }
+  );
+
+  // Helper function to invalidate relevant caches
+  const invalidateRelatedCaches = () => {
+    if (dossierId && clientId) {
+      // Invalidate dossier services cache
+      mutate(`/dossiers/${dossierId}/services`);
+      // Invalidate dossiers list cache (for counters)
+      mutate(`/dossiers/${clientId}`);
+      // Also invalidate by ID for good measure
+      mutate(`/dossier/${dossierId}`);
+    }
+  };
 
   const form = useForm<ServicesFormData>({
     resolver: zodResolver(ServicesFormSchema),
@@ -57,41 +78,30 @@ export function ServicesSection({ clientId, isNewClient = false }: ServicesSecti
   const isAdmin = user?.role === 'ADMIN';
 
   useEffect(() => {
-    if (clientId && !isNewClient) {
-      loadData();
-    } else {
-      // Load service types for new clients too
-      loadServiceTypes();
-    }
-  }, [clientId, isNewClient]);
+    // Load service types only once
+    const loadServiceTypes = async () => {
+      try {
+        const typesData = await metaAPI.getServiceTypes();
+        setServiceTypes(typesData);
+      } catch (error) {
+        console.error('Failed to load service types:', error);
+        toast.error('Failed to load service types');
+      }
+    };
 
-  const loadServiceTypes = async () => {
-    try {
-      const typesData = await metaAPI.getServiceTypes();
-      setServiceTypes(typesData);
-    } catch (error) {
-      console.error('Failed to load service types:', error);
-      toast.error('Failed to load service types');
-    } finally {
-      setLoading(false);
-    }
-  };
+    loadServiceTypes();
+  }, []);
 
-  const loadData = async () => {
-    try {
-      const [servicesData, typesData] = await Promise.all([
-        servicesAPI.getClientServices(clientId),
-        metaAPI.getServiceTypes(),
-      ]);
-      setServices(servicesData);
-      setServiceTypes(typesData);
-    } catch (error) {
-      console.error('Failed to load services data:', error);
-      toast.error('Failed to load services');
-    } finally {
-      setLoading(false);
+  // Reset form when dossier changes (Bug B fix)
+  useEffect(() => {
+    if (dossierId) {
+      form.reset({ services: [] }); // Clear form rows
+      setPrefilledPrices({}); // Reset prefilled prices state
+      setUserModifiedPrices({}); // Reset user modified prices state
+      setPriceLoadingStates({}); // Reset loading states
     }
-  };
+  }, [dossierId, form]);
+
 
   // Debounced function to fetch last price
   const fetchLastPrice = useCallback(
@@ -193,8 +203,14 @@ export function ServicesSection({ clientId, isNewClient = false }: ServicesSecti
       return;
     }
 
+    if (!dossierId) {
+      toast.error('No dossier selected. Please select a dossier first.');
+      return;
+    }
+
     // Ensure data types are correct
     const payload = {
+      dossierId: dossierId,
       serviceType: serviceData.serviceType,
       quantity: Number(serviceData.quantity),
       unitPrice: Number(serviceData.unitPrice),
@@ -202,10 +218,10 @@ export function ServicesSection({ clientId, isNewClient = false }: ServicesSecti
 
     try {
       setSaving(true);
-      await servicesAPI.createService(clientId, payload);
+      await servicesAPI.createService(payload);
       toast.success('Service saved successfully');
       remove(index);
-      loadData(); // Refresh the list
+      invalidateRelatedCaches(); // Invalidate caches to update counters and lists
     } catch (error) {
       console.error('Failed to save service:', error);
       toast.error('Failed to save service');
@@ -222,6 +238,11 @@ export function ServicesSection({ clientId, isNewClient = false }: ServicesSecti
       return;
     }
 
+    if (!dossierId) {
+      toast.error('No dossier selected. Please select a dossier first.');
+      return;
+    }
+
     // Validate all services have service types
     const invalidServices = formData.services.filter(s => !s.serviceType);
     if (invalidServices.length > 0) {
@@ -231,6 +252,7 @@ export function ServicesSection({ clientId, isNewClient = false }: ServicesSecti
 
     // Ensure data types are correct for all services
     const payload = {
+      dossierId: dossierId,
       items: formData.services.map(service => ({
         serviceType: service.serviceType,
         quantity: Number(service.quantity),
@@ -240,10 +262,10 @@ export function ServicesSection({ clientId, isNewClient = false }: ServicesSecti
 
     try {
       setSaving(true);
-      await servicesAPI.createManyServices(clientId, payload);
+      await servicesAPI.createManyServices(payload);
       toast.success('Services saved successfully');
       form.reset({ services: [] });
-      loadData(); // Refresh the list
+      invalidateRelatedCaches(); // Invalidate caches to update counters and lists
     } catch (error) {
       console.error('Failed to save services:', error);
       toast.error('Failed to save services');
@@ -258,7 +280,7 @@ export function ServicesSection({ clientId, isNewClient = false }: ServicesSecti
     try {
       await servicesAPI.deleteService(serviceId);
       toast.success('Service deleted successfully');
-      loadData(); // Refresh the list
+      invalidateRelatedCaches(); // Invalidate caches to update counters and lists
     } catch (error) {
       console.error('Failed to delete service:', error);
       toast.error('Failed to delete service');
@@ -276,7 +298,7 @@ export function ServicesSection({ clientId, isNewClient = false }: ServicesSecti
     }, 0).toFixed(2);
   };
 
-  if (loading && !isNewClient) {
+  if (isLoading && !isNewClient) {
     return (
       <Card>
         <CardHeader>
@@ -307,12 +329,30 @@ export function ServicesSection({ clientId, isNewClient = false }: ServicesSecti
     );
   }
 
+  if (!dossierId) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Services</CardTitle>
+          <CardDescription>
+            Please select a dossier to manage services
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4 text-gray-500">
+            No dossier selected. Please select a dossier from the list above to view and manage services.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Services</CardTitle>
         <CardDescription>
-          Manage services for this client
+          Manage services{dossierId ? ` for dossier (#${dossierId.slice(-8).toUpperCase()})` : ' for this client'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -470,7 +510,7 @@ export function ServicesSection({ clientId, isNewClient = false }: ServicesSecti
 
         {/* Existing Services Table */}
         <div>
-          <h3 className="text-lg font-medium mb-4">Existing Services</h3>
+          <h3 className="text-lg font-medium mb-4">Services in this dossier</h3>
           {services.length === 0 ? (
             <p className="text-gray-500 text-center py-4">No services added yet.</p>
           ) : (

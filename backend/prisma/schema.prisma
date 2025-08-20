@@ -69,6 +69,12 @@ enum InstallmentStatus {
   PAID
 }
 
+enum DossierStatus {
+  EN_COURS
+  TERMINE
+  ANNULE
+}
+
 // Models
 model User {
   id        String   @id @default(cuid())
@@ -105,8 +111,7 @@ model Client {
   employers     Employer[]
   attachments   Attachment[]
   familyMembers FamilyMember[]
-  serviceItems  ServiceItem[]
-  payments      Payment[]
+  dossiers      Dossier[]
 
   @@map("clients")
 }
@@ -159,10 +164,25 @@ model FamilyMember {
   @@map("family_members")
 }
 
+model Dossier {
+  id        String        @id @default(cuid())
+  clientId  String
+  client    Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  status    DossierStatus @default(EN_COURS)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  // Relations
+  serviceItems ServiceItem[]
+  payments     Payment[]
+
+  @@map("dossiers")
+}
+
 model ServiceItem {
   id          String      @id @default(cuid())
-  clientId    String
-  client      Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  dossierId   String
+  dossier     Dossier     @relation(fields: [dossierId], references: [id], onDelete: Cascade)
   serviceType ServiceType
   quantity    Int         @default(1)
   unitPrice   Decimal     @db.Decimal(10,2)
@@ -174,8 +194,8 @@ model ServiceItem {
 
 model Payment {
   id              String          @id @default(cuid())
-  clientId        String
-  client          Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  dossierId       String
+  dossier         Dossier         @relation(fields: [dossierId], references: [id], onDelete: Cascade)
   totalAmount     Decimal         @db.Decimal(10,2)
   paymentOption   PaymentOption?
   paymentModality PaymentModality
