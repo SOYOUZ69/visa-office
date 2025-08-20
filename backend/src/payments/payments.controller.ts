@@ -36,38 +36,39 @@ import { Payment, PaymentInstallment } from '@prisma/client';
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
-  @Get('clients/:id/payments')
-  @ApiOperation({ summary: 'Get all payments for a client' })
-  @ApiParam({ name: 'id', description: 'Client ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'List of payments for the client',
-    type: [PaymentResponseDto],
-  })
-  @ApiResponse({ status: 404, description: 'Client not found' })
-  @Roles(UserRole.ADMIN, UserRole.USER)
-  async getClientPayments(
-    @Param('id') clientId: string,
-  ): Promise<(Payment & { installments: PaymentInstallment[] })[]> {
-    return this.paymentsService.getClientPayments(clientId);
-  }
-
-  @Post('clients/:id/payment')
-  @ApiOperation({ summary: 'Create a payment for a client' })
-  @ApiParam({ name: 'id', description: 'Client ID' })
+  @Post('payments')
+  @ApiOperation({ summary: 'Create a payment for a dossier' })
   @ApiResponse({
     status: 201,
     description: 'Payment created successfully',
     type: PaymentResponseDto,
   })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
-  @ApiResponse({ status: 404, description: 'Client not found' })
+  @ApiResponse({ status: 404, description: 'Dossier not found' })
   @Roles(UserRole.ADMIN)
   async createPayment(
-    @Param('id') clientId: string,
     @Body() createPaymentDto: CreatePaymentDto,
   ): Promise<Payment & { installments: PaymentInstallment[] }> {
-    return this.paymentsService.createPayment(clientId, createPaymentDto);
+    return this.paymentsService.createPayment(
+      createPaymentDto.dossierId,
+      createPaymentDto,
+    );
+  }
+
+  @Get('dossiers/:id/payments')
+  @ApiOperation({ summary: 'Get all payments for a dossier' })
+  @ApiParam({ name: 'id', description: 'Dossier ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of payments for the dossier',
+    type: [PaymentResponseDto],
+  })
+  @ApiResponse({ status: 404, description: 'Dossier not found' })
+  @Roles(UserRole.ADMIN, UserRole.USER)
+  async getDossierPayments(
+    @Param('id') dossierId: string,
+  ): Promise<(Payment & { installments: PaymentInstallment[] })[]> {
+    return this.paymentsService.getDossierPayments(dossierId);
   }
 
   @Patch('payments/:paymentId')
@@ -151,12 +152,12 @@ export class PaymentsController {
     return this.paymentsService.getPaymentStatistics();
   }
 
-  @Get('clients/:id/unprocessed-services')
-  @ApiOperation({ summary: 'Get unprocessed services for a client' })
-  @ApiParam({ name: 'id', description: 'Client ID' })
+  @Get('dossiers/:id/unprocessed-services')
+  @ApiOperation({ summary: 'Get unprocessed services for a dossier' })
+  @ApiParam({ name: 'id', description: 'Dossier ID' })
   @ApiResponse({
     status: 200,
-    description: 'Unprocessed services for the client',
+    description: 'Unprocessed services for the dossier',
     schema: {
       type: 'object',
       properties: {
@@ -166,9 +167,9 @@ export class PaymentsController {
       },
     },
   })
-  @ApiResponse({ status: 404, description: 'Client not found' })
+  @ApiResponse({ status: 404, description: 'Dossier not found' })
   @Roles(UserRole.ADMIN, UserRole.USER)
-  async getUnprocessedServices(@Param('id') clientId: string) {
-    return this.paymentsService.getUnprocessedServices(clientId);
+  async getUnprocessedServices(@Param('id') dossierId: string) {
+    return this.paymentsService.getUnprocessedServices(dossierId);
   }
 }

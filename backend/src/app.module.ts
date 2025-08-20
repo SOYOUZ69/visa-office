@@ -11,6 +11,7 @@ import { ServicesModule } from './services/services.module';
 import { PaymentsModule } from './payments/payments.module';
 import { FinancialModule } from './financial/financial.module';
 import { EmployeeModule } from './employee/employee.module';
+import { DossiersModule } from './dossiers/dossiers.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { EmployeeModule } from './employee/employee.module';
     PaymentsModule,
     FinancialModule,
     EmployeeModule,
+    DossiersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

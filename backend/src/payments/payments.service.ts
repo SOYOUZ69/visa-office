@@ -21,46 +21,40 @@ export class PaymentsService {
     private employeeService: EmployeeService,
   ) {}
 
-  async getClientPayments(
-    clientId: string,
+  async getDossierPayments(
+    dossierId: string,
   ): Promise<(Payment & { installments: PaymentInstallment[] })[]> {
     // Verify client exists
-    const client = await this.prisma.client.findUnique({
-      where: { id: clientId },
-    });
-
-    if (!client) {
-      throw new NotFoundException(`Client with ID ${clientId} not found`);
-    }
-
-    return this.prisma.payment.findMany({
-      where: { clientId },
+    const dossier = await this.prisma.dossier.findUnique({
+      where: { id: dossierId },
       include: {
-        installments: {
-          orderBy: { dueDate: 'asc' },
+        payments: {
+          include: {
+            installments: true,
+          },
         },
       },
-      orderBy: { createdAt: 'desc' },
     });
+
+    if (!dossier) {
+      throw new NotFoundException(`Dossier with ID ${dossierId} not found`);
+    }
+    return dossier.payments;
   }
-
-  async createPayment(
-    clientId: string,
-    createPaymentDto: CreatePaymentDto,
-  ): Promise<Payment & { installments: PaymentInstallment[] }> {
-    // Verify client exists
-    const client = await this.prisma.client.findUnique({
-      where: { id: clientId },
+  async createPayment(dossierId: string, createPaymentDto: CreatePaymentDto) {
+    // Verify dossier exists
+    const dossier = await this.prisma.dossier.findUnique({
+      where: { id: dossierId },
     });
 
-    if (!client) {
-      throw new NotFoundException(`Client with ID ${clientId} not found`);
+    if (!dossier) {
+      throw new NotFoundException(`Dossier with ID ${dossierId} not found`);
     }
 
     // Get unprocessed services for this client
     const unprocessedServices = await this.prisma.serviceItem.findMany({
       where: {
-        clientId,
+        dossierId,
         isProcessed: false,
       },
     });
@@ -111,7 +105,7 @@ export class PaymentsService {
       // Create the payment
       const payment = await prisma.payment.create({
         data: {
-          clientId,
+          dossierId,
           totalAmount,
           paymentOption: createPaymentDto.paymentOption,
           paymentModality: createPaymentDto.paymentModality,
@@ -139,7 +133,7 @@ export class PaymentsService {
       // Mark all unprocessed services as processed and link them to this payment
       await prisma.serviceItem.updateMany({
         where: {
-          clientId,
+          dossierId,
           isProcessed: false,
         },
         data: {
@@ -169,7 +163,7 @@ export class PaymentsService {
                 caisseId: defaultCaisse.id,
                 type: TransactionType.INCOME,
                 amount: payment.totalAmount,
-                description: `Paiement pour ${client.fullName} - ${payment.paymentModality}`,
+                description: `Paiement pour ${dossier.id} - ${payment.paymentModality}`,
                 reference: `Payment ID: ${payment.id}`,
                 status: TransactionStatus.PENDING,
                 paymentId: payment.id,
@@ -186,7 +180,7 @@ export class PaymentsService {
           console.error('Failed to create transaction for payment:', error);
           console.error('Payment details:', {
             paymentId: payment.id,
-            clientId: client.id,
+            dossierId: dossier.id,
           });
           // Don't throw here as the payment was created successfully
         }
@@ -198,9 +192,9 @@ export class PaymentsService {
     // Handle employee commission after payment is committed
     // Get all assigned employees for this client
     const clientEmployeeAssignments =
-      await this.prisma.clientEmployeeAssignment.findMany({
+      await this.prisma.dossierEmployeeAssignment.findMany({
         where: {
-          clientId: client.id,
+          dossierId: dossier.id,
           isActive: true,
         },
         include: {
@@ -214,7 +208,7 @@ export class PaymentsService {
         await this.employeeService.calculateAndRecordCommission(
           assignment.employeeId,
           payment.id,
-          client.id,
+          dossier.id,
           Number(payment.totalAmount),
         );
       } catch (error) {
@@ -272,13 +266,13 @@ export class PaymentsService {
 
     return this.prisma.$transaction(async (prisma) => {
       // Get client info for transaction update
-      const client = await prisma.client.findUnique({
-        where: { id: existingPayment.clientId },
+      const dossier = await prisma.dossier.findUnique({
+        where: { id: existingPayment.dossierId },
       });
 
-      if (!client) {
+      if (!dossier) {
         throw new NotFoundException(
-          `Client not found for payment ${paymentId}`,
+          `Dossier not found for payment ${paymentId}`,
         );
       }
 
@@ -339,7 +333,7 @@ export class PaymentsService {
           where: { id: existingTransaction.id },
           data: {
             amount: newAmount,
-            description: `Paiement pour ${client.fullName} - ${newPaymentModality}`,
+            description: `Paiement pour ${dossier.id} - ${newPaymentModality}`,
             reference: `Payment ID: ${paymentId}`,
             transactionDate: new Date(),
           },
@@ -371,7 +365,7 @@ export class PaymentsService {
                 caisseId: defaultCaisse.id,
                 type: TransactionType.INCOME,
                 amount: newTotalAmount,
-                description: `Paiement pour ${client.fullName} - ${newPaymentModality}`,
+                description: `Paiement pour ${dossier.id} - ${newPaymentModality}`,
                 reference: `Payment ID: ${paymentId}`,
                 status: TransactionStatus.COMPLETED,
                 paymentId: paymentId,
@@ -585,7 +579,7 @@ export class PaymentsService {
       include: {
         payment: {
           include: {
-            client: true,
+            dossier: true,
           },
         },
       },
@@ -628,7 +622,7 @@ export class PaymentsService {
         caisseId: targetCaisseId,
         type: TransactionType.INCOME,
         amount: installment.amount,
-        description: `Paiement d'échéance: ${installment.description} - ${installment.payment.client.fullName}`,
+        description: `Paiement d'échéance: ${installment.description} - ${installment.payment.dossier.id}`,
         reference: `Installment ID: ${installment.id}`,
         status: TransactionStatus.PENDING,
         paymentId: installment.paymentId,
@@ -683,18 +677,18 @@ export class PaymentsService {
   }
 
   // Method to get unprocessed services for a client
-  async getUnprocessedServices(clientId: string) {
-    const client = await this.prisma.client.findUnique({
-      where: { id: clientId },
+  async getUnprocessedServices(dossierId: string) {
+    const dossier = await this.prisma.dossier.findUnique({
+      where: { id: dossierId },
     });
 
-    if (!client) {
-      throw new NotFoundException(`Client with ID ${clientId} not found`);
+    if (!dossier) {
+      throw new NotFoundException(`Dossier with ID ${dossierId} not found`);
     }
 
     const unprocessedServices = await this.prisma.serviceItem.findMany({
       where: {
-        clientId,
+        dossierId,
         isProcessed: false,
       },
       orderBy: { createdAt: 'asc' },

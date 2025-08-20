@@ -9,35 +9,59 @@ import { ServiceItem, ServiceType } from '@prisma/client';
 export class ServicesService {
   constructor(private prisma: PrismaService) {}
 
-  async getClientServices(clientId: string): Promise<ServiceItem[]> {
-    // Check if client exists
-    const client = await this.prisma.client.findUnique({
-      where: { id: clientId },
+  async getDossierServices(dossierId: string): Promise<ServiceItem[]> {
+    // Check if dossier exists
+    const dossier = await this.prisma.dossier.findUnique({
+      where: { id: dossierId },
+      include: { client: true },
     });
 
-    if (!client) {
-      throw new NotFoundException(`Client with ID ${clientId} not found`);
+    if (!dossier) {
+      throw new NotFoundException(`Dossier with ID ${dossierId} not found`);
     }
 
     return this.prisma.serviceItem.findMany({
-      where: { clientId },
+      where: { dossierId },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async createService(clientId: string, createServiceDto: CreateServiceDto): Promise<ServiceItem> {
+  async getClientServices(clientId: string): Promise<ServiceItem[]> {
     // Check if client exists
     const client = await this.prisma.client.findUnique({
       where: { id: clientId },
+      include: {
+        dossiers: {
+          include: {
+            serviceItems: true,
+          },
+        },
+      },
     });
 
     if (!client) {
       throw new NotFoundException(`Client with ID ${clientId} not found`);
     }
 
+    // Flatten all services from all dossiers
+    const allServices = client.dossiers.flatMap(dossier => dossier.serviceItems);
+    return allServices.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async createService(createServiceDto: CreateServiceDto): Promise<ServiceItem> {
+    // Check if dossier exists
+    const dossier = await this.prisma.dossier.findUnique({
+      where: { id: createServiceDto.dossierId },
+      include: { client: true },
+    });
+
+    if (!dossier) {
+      throw new NotFoundException(`Dossier with ID ${createServiceDto.dossierId} not found`);
+    }
+
     return this.prisma.serviceItem.create({
       data: {
-        clientId,
+        dossierId: createServiceDto.dossierId,
         serviceType: createServiceDto.serviceType,
         quantity: createServiceDto.quantity,
         unitPrice: createServiceDto.unitPrice,
@@ -45,14 +69,15 @@ export class ServicesService {
     });
   }
 
-  async createManyServices(clientId: string, createManyServicesDto: CreateManyServicesDto): Promise<ServiceItem[]> {
-    // Check if client exists
-    const client = await this.prisma.client.findUnique({
-      where: { id: clientId },
+  async createManyServices(createManyServicesDto: CreateManyServicesDto): Promise<ServiceItem[]> {
+    // Check if dossier exists
+    const dossier = await this.prisma.dossier.findUnique({
+      where: { id: createManyServicesDto.dossierId },
+      include: { client: true },
     });
 
-    if (!client) {
-      throw new NotFoundException(`Client with ID ${clientId} not found`);
+    if (!dossier) {
+      throw new NotFoundException(`Dossier with ID ${createManyServicesDto.dossierId} not found`);
     }
 
     // Validate that we have at least one item
@@ -65,7 +90,7 @@ export class ServicesService {
       createManyServicesDto.items.map((item) =>
         this.prisma.serviceItem.create({
           data: {
-            clientId,
+            dossierId: createManyServicesDto.dossierId,
             serviceType: item.serviceType,
             quantity: item.quantity,
             unitPrice: item.unitPrice,

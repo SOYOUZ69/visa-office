@@ -139,54 +139,5 @@ export class ClientsController {
     return this.clientsService.addFamilyMember(id, createFamilyMemberDto);
   }
 
-  @Post(':id/assign-employee')
-  @Roles(UserRole.ADMIN)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Assign an employee to a client' })
-  @ApiResponse({ status: 200, description: 'Employee assigned successfully' })
-  @ApiResponse({ status: 400, description: 'Bad request - validation error' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - admin role required' })
-  @ApiResponse({ status: 404, description: 'Client or employee not found' })
-  assignEmployee(
-    @Param('id') clientId: string,
-    @Body() body: { employeeId: string; role?: string },
-  ) {
-    return this.clientsService.assignEmployee(
-      clientId,
-      body.employeeId,
-      body.role,
-    );
-  }
-
-  @Delete(':id/assign-employee')
-  @Roles(UserRole.ADMIN)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Unassign employee from a client' })
-  @ApiResponse({ status: 200, description: 'Employee unassigned successfully' })
-  @ApiResponse({ status: 400, description: 'Bad request - validation error' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - admin role required' })
-  @ApiResponse({ status: 404, description: 'Client not found' })
-  unassignEmployee(
-    @Param('id') clientId: string,
-    @Body() body: { employeeId: string },
-  ) {
-    return this.clientsService.unassignEmployee(clientId, body.employeeId);
-  }
-
-  @Get(':id/assigned-employees')
-  @Roles(UserRole.ADMIN)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all employees assigned to a client' })
-  @ApiResponse({
-    status: 200,
-    description: 'Assigned employees retrieved successfully',
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - admin role required' })
-  @ApiResponse({ status: 404, description: 'Client not found' })
-  getAssignedEmployees(@Param('id') clientId: string) {
-    return this.clientsService.getAssignedEmployees(clientId);
-  }
+ 
 }

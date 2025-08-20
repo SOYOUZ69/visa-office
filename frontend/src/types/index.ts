@@ -47,9 +47,9 @@ export interface FamilyMember {
   updatedAt: string;
 }
 
-export interface ClientEmployeeAssignment {
+export interface DossierEmployeeAssignment {
   id: string;
-  clientId: string;
+  dossierId: string;
   employeeId: string;
   assignedAt: string;
   isActive: boolean;
@@ -61,9 +61,35 @@ export interface ClientEmployeeAssignment {
     commissionPercentage: string;
   };
 }
+// Dossier Types
+export type DossierStatus = "EN_COURS" | "TERMINE" | "ANNULE";
+
+export interface Dossier {
+  id: string;
+  clientId: string;
+  status: DossierStatus;
+  createdAt: string;
+  updatedAt: string;
+  totalAmount?: number;
+  servicesCount?: number;
+  paymentsCount?: number;
+  serviceItems?: ServiceItem[];
+  payments?: Payment[];
+  assignedEmployees?: DossierEmployeeAssignment[];
+}
+
+export interface CreateDossierData {
+  clientId: string;
+  status?: DossierStatus;
+}
+
+export interface UpdateDossierData {
+  status?: DossierStatus;
+}
 
 export interface Client {
   id: string;
+
   clientType: "INDIVIDUAL" | "FAMILY" | "GROUP" | "PHONE_CALL";
   status: "NEW" | "IN_REVIEW" | "PENDING_DOCS" | "APPROVED" | "REJECTED";
   fullName: string;
@@ -84,7 +110,7 @@ export interface Client {
   employers: Employer[];
   attachments: Attachment[];
   familyMembers: FamilyMember[];
-  assignedEmployees?: ClientEmployeeAssignment[];
+  dossiers?: Dossier[];
 }
 
 export interface ClientsResponse {
@@ -129,7 +155,7 @@ export interface QueryParams {
 
 export interface ServiceItem {
   id: string;
-  clientId: string;
+  dossierId: string;
   serviceType: string;
   quantity: number;
   unitPrice: number;
@@ -140,13 +166,15 @@ export interface ServiceItem {
 }
 
 export interface CreateServiceData {
+  dossierId: string;
   serviceType: string;
   quantity: number;
   unitPrice: number;
 }
 
 export interface CreateManyServicesData {
-  items: CreateServiceData[];
+  dossierId: string;
+  items: Omit<CreateServiceData, "dossierId">[];
 }
 
 export interface UpdateServiceData {
@@ -189,7 +217,7 @@ export interface PaymentInstallment {
 
 export interface Payment {
   id: string;
-  clientId: string;
+  dossierId: string;
   totalAmount: number;
   paymentOption?: PaymentOption;
   paymentModality: PaymentModality;
@@ -219,6 +247,7 @@ export interface CreateFamilyMemberData {
 }
 
 export interface CreatePaymentData {
+  dossierId: string;
   totalAmount: number;
   paymentOption?: PaymentOption;
   paymentModality: PaymentModality;

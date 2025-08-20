@@ -263,10 +263,9 @@ export class EmployeeService {
       await this.prisma.employeeCommission.findMany({
         where: whereClause,
         include: {
-          client: {
+          dossier: {
             select: {
               id: true,
-              fullName: true,
             },
           },
           payment: {
@@ -283,8 +282,7 @@ export class EmployeeService {
     // Calculate total commission from unprocessed records
     let totalCommission = 0;
     const commissionDetails: Array<{
-      clientId: string;
-      clientName: string;
+      dossierId: string;
       paymentId: string;
       paymentAmount: number;
       commissionAmount: number;
@@ -297,8 +295,7 @@ export class EmployeeService {
       totalCommission += commissionAmount;
 
       commissionDetails.push({
-        clientId: commission.clientId,
-        clientName: commission.client.fullName,
+        dossierId: commission.dossierId,
         paymentId: commission.paymentId,
         paymentAmount: Number(commission.paymentAmount),
         commissionAmount,
@@ -348,9 +345,9 @@ export class EmployeeService {
       await this.prisma.employeeCommission.findMany({
         where: whereClause,
         include: {
-          client: {
+          dossier: {
             select: {
-              fullName: true,
+              id: true,
             },
           },
         },
@@ -418,7 +415,7 @@ export class EmployeeService {
         transactionId: transaction.id,
         employeeName: employee.fullName,
         commissionDetails: unprocessedCommissions.map((commission) => ({
-          clientName: commission.client.fullName,
+          dossierId: commission.dossier.id,
           commissionAmount: Number(commission.commissionAmount),
           paymentAmount: Number(commission.paymentAmount),
         })),
@@ -432,7 +429,7 @@ export class EmployeeService {
       include: {
         assignedClients: {
           include: {
-            client: {
+            dossier: {
               include: {
                 payments: true,
               },
@@ -459,7 +456,7 @@ export class EmployeeService {
         (sum, assignment) => {
           return (
             sum +
-            assignment.client.payments.reduce((paymentSum, payment) => {
+            assignment.dossier.payments.reduce((paymentSum, payment) => {
               return (
                 paymentSum +
                 (Number(payment.totalAmount) *
@@ -483,7 +480,7 @@ export class EmployeeService {
   async calculateAndRecordCommission(
     employeeId: string,
     paymentId: string,
-    clientId: string,
+    dossierId: string,
     paymentAmount: number,
   ) {
     // Get employee details
@@ -509,7 +506,7 @@ export class EmployeeService {
       data: {
         employeeId: employee.id,
         paymentId: paymentId,
-        clientId: clientId,
+        dossierId: dossierId,
         commissionAmount: commissionAmount,
         commissionPercentage: commissionPercentage,
         paymentAmount: paymentAmount,
@@ -552,10 +549,9 @@ export class EmployeeService {
     return this.prisma.employeeCommission.findMany({
       where,
       include: {
-        client: {
+        dossier: {
           select: {
             id: true,
-            fullName: true,
           },
         },
         payment: {
@@ -587,9 +583,9 @@ export class EmployeeService {
         },
       },
       include: {
-        client: {
+        dossier: {
           select: {
-            fullName: true,
+            id: true,
           },
         },
       },
@@ -601,7 +597,7 @@ export class EmployeeService {
     );
 
     const commissionDetails = commissions.map((commission) => ({
-      clientName: commission.client.fullName,
+      dossierId: commission.dossierId,
       paymentAmount: Number(commission.paymentAmount),
       commissionAmount: Number(commission.commissionAmount),
       commissionPercentage: Number(commission.commissionPercentage),

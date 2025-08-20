@@ -13,7 +13,7 @@ import { UpdateClientDto } from './dto/update-client.dto';
 import { QueryClientDto } from './dto/query-client.dto';
 import { CreateFamilyMemberDto } from './dto/create-family-member.dto';
 import { CreatePhoneCallClientDto } from './dto/create-phone-call-client.dto';
-import { ClientType, PaymentOption } from '@prisma/client';
+import { ClientType, PaymentOption, DossierStatus } from '@prisma/client';
 
 @Injectable()
 export class ClientsService {
@@ -45,36 +45,39 @@ export class ClientsService {
       }
     }
 
-    return this.prisma.client.create({
-      data: {
-        ...clientData,
-        phoneNumbers: {
-          create: phoneNumbers || [],
-        },
-        employers: {
-          create: employers || [],
-        },
-        familyMembers: {
-          create: familyMembers || [],
-        },
-      },
-      include: {
-        phoneNumbers: true,
-        employers: true,
-        attachments: true,
-        familyMembers: true,
-        assignedEmployees: {
-          include: {
-            employee: {
-              select: {
-                id: true,
-                fullName: true,
-                commissionPercentage: true,
-              },
-            },
+    // Use transaction to create client and primary dossier
+    return this.prisma.$transaction(async (tx) => {
+      // Create the client
+      const client = await tx.client.create({
+        data: {
+          ...clientData,
+          phoneNumbers: {
+            create: phoneNumbers || [],
+          },
+          employers: {
+            create: employers || [],
+          },
+          familyMembers: {
+            create: familyMembers || [],
           },
         },
-      },
+        include: {
+          phoneNumbers: true,
+          employers: true,
+          attachments: true,
+          familyMembers: true,
+        },
+      });
+
+      // Create primary dossier
+      await tx.dossier.create({
+        data: {
+          clientId: client.id,
+          status: DossierStatus.EN_COURS,
+        },
+      });
+
+      return client;
     });
   }
 
@@ -110,17 +113,7 @@ export class ClientsService {
           employers: true,
           attachments: true,
           familyMembers: true,
-          assignedEmployees: {
-            include: {
-              employee: {
-                select: {
-                  id: true,
-                  fullName: true,
-                  commissionPercentage: true,
-                },
-              },
-            },
-          },
+          dossiers: true,
         },
         orderBy: { updatedAt: 'desc' },
       }),
@@ -146,16 +139,16 @@ export class ClientsService {
         employers: true,
         attachments: true,
         familyMembers: true,
-        assignedEmployees: {
+        dossiers: {
           include: {
-            employee: {
-              select: {
-                id: true,
-                fullName: true,
-                commissionPercentage: true,
+            serviceItems: true,
+            payments: {
+              include: {
+                installments: true,
               },
             },
           },
+          orderBy: { createdAt: 'desc' },
         },
       },
     });
@@ -239,17 +232,7 @@ export class ClientsService {
         employers: true,
         attachments: true,
         familyMembers: true,
-        assignedEmployees: {
-          include: {
-            employee: {
-              select: {
-                id: true,
-                fullName: true,
-                commissionPercentage: true,
-              },
-            },
-          },
-        },
+        
       },
     });
   }
@@ -268,105 +251,7 @@ export class ClientsService {
     });
   }
 
-  async assignEmployee(clientId: string, employeeId: string, role?: string) {
-    // Verify client exists
-    const client = await this.prisma.client.findUnique({
-      where: { id: clientId },
-    });
-
-    if (!client) {
-      throw new NotFoundException(`Client with ID ${clientId} not found`);
-    }
-
-    // Verify employee exists
-    const employee = await this.prisma.employee.findUnique({
-      where: { id: employeeId },
-    });
-
-    if (!employee) {
-      throw new NotFoundException(`Employee with ID ${employeeId} not found`);
-    }
-
-    // Check if assignment already exists
-    const existingAssignment =
-      await this.prisma.clientEmployeeAssignment.findUnique({
-        where: {
-          clientId_employeeId: {
-            clientId,
-            employeeId,
-          },
-        },
-      });
-
-    if (existingAssignment) {
-      if (existingAssignment.isActive) {
-        throw new Error('Employee is already assigned to this client');
-      } else {
-        // Reactivate existing assignment
-        await this.prisma.clientEmployeeAssignment.update({
-          where: { id: existingAssignment.id },
-          data: { isActive: true, role },
-        });
-        return { message: 'Employee assignment reactivated' };
-      }
-    }
-
-    // Create new assignment
-    await this.prisma.clientEmployeeAssignment.create({
-      data: {
-        clientId,
-        employeeId,
-        role,
-      },
-    });
-
-    return { message: 'Employee assigned to client successfully' };
-  }
-
-  async unassignEmployee(clientId: string, employeeId: string) {
-    const assignment = await this.prisma.clientEmployeeAssignment.findUnique({
-      where: {
-        clientId_employeeId: {
-          clientId,
-          employeeId,
-        },
-      },
-    });
-
-    if (!assignment) {
-      throw new Error('Employee is not assigned to this client');
-    }
-
-    // Soft delete by setting isActive to false
-    await this.prisma.clientEmployeeAssignment.update({
-      where: { id: assignment.id },
-      data: { isActive: false },
-    });
-
-    return { message: 'Employee unassigned from client successfully' };
-  }
-
-  async getAssignedEmployees(clientId: string) {
-    const assignments = await this.prisma.clientEmployeeAssignment.findMany({
-      where: {
-        clientId,
-        isActive: true,
-      },
-      include: {
-        employee: {
-          select: {
-            id: true,
-            fullName: true,
-            salaryType: true,
-            commissionPercentage: true,
-          },
-        },
-      },
-      orderBy: { assignedAt: 'desc' },
-    });
-
-    return assignments;
-  }
+ 
 
   async addFamilyMember(
     clientId: string,
@@ -452,34 +337,32 @@ export class ClientsService {
         include: {
           phoneNumbers: true,
           employers: true,
-          assignedEmployees: {
-            include: {
-              employee: {
-                select: {
-                  id: true,
-                  fullName: true,
-                  commissionPercentage: true,
-                },
-              },
-            },
-          },
+          
         },
       });
 
-      // 2. Create services
-      const createdServices = await tx.serviceItem.createMany({
-        data: services.map((service) => ({
+      // 2. Create primary dossier
+      const dossier = await tx.dossier.create({
+        data: {
           clientId: client.id,
+          status: DossierStatus.EN_COURS,
+        },
+      });
+
+      // 3. Create services linked to the dossier
+      const createdServices = await tx.serviceItem.createMany({
+        data: services.map(service => ({
+          dossierId: dossier.id,
           serviceType: service.serviceType,
           quantity: service.quantity,
           unitPrice: service.unitPrice,
         })),
       });
 
-      // 3. Create payment with installments
+      // 4. Create payment with installments linked to the dossier
       const payment = await tx.payment.create({
         data: {
-          clientId: client.id,
+          dossierId: dossier.id,
           totalAmount: paymentConfig.totalAmount,
           paymentOption: paymentConfig.paymentOption,
           paymentModality: paymentConfig.paymentModality,
@@ -498,7 +381,7 @@ export class ClientsService {
         },
       });
 
-      // 4. Fetch complete client with all relations
+      // 5. Fetch complete client with all relations including dossiers
       const completeClient = await tx.client.findUnique({
         where: { id: client.id },
         include: {
@@ -506,21 +389,14 @@ export class ClientsService {
           employers: true,
           attachments: true,
           familyMembers: true,
-          serviceItems: true,
-          assignedEmployees: {
+          dossiers: {
             include: {
-              employee: {
-                select: {
-                  id: true,
-                  fullName: true,
-                  commissionPercentage: true,
+              serviceItems: true,
+              payments: {
+                include: {
+                  installments: true,
                 },
               },
-            },
-          },
-          payments: {
-            include: {
-              installments: true,
             },
           },
         },
