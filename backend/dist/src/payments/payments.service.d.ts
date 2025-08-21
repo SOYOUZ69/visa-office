@@ -15,4 +15,17 @@ export declare class PaymentsService {
         installments: PaymentInstallment[];
     }>;
     deletePayment(paymentId: string): Promise<void>;
+    private updateCaisseBalanceForNewTransaction;
+    private verifyPaymentExists;
+    private updateCaisseBalanceForTransactionChange;
+    private getDefaultCaisseForPaymentOption;
+    private createTransactionForPayment;
+    markInstallmentAsPaid(installmentId: string, caisseId?: string): Promise<PaymentInstallment>;
+    getPaymentStatistics(): Promise<{
+        totalPayments: number;
+        totalAmount: number | import("@prisma/client/runtime/library").Decimal;
+        pendingInstallments: number;
+        paidInstallments: number;
+        completionRate: number;
+    }>;
 }

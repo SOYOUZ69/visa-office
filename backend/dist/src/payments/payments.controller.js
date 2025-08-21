@@ -40,6 +40,12 @@ let PaymentsController = class PaymentsController {
     async deletePayment(paymentId) {
         return this.paymentsService.deletePayment(paymentId);
     }
+    async markInstallmentAsPaid(installmentId, caisseId) {
+        return this.paymentsService.markInstallmentAsPaid(installmentId, caisseId);
+    }
+    async getPaymentStatistics() {
+        return this.paymentsService.getPaymentStatistics();
+    }
 };
 exports.PaymentsController = PaymentsController;
 __decorate([
@@ -107,6 +113,58 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], PaymentsController.prototype, "deletePayment", null);
+__decorate([
+    (0, common_1.Post)('installments/:installmentId/mark-paid'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Mark an installment as paid and create transaction',
+    }),
+    (0, swagger_1.ApiParam)({ name: 'installmentId', description: 'Installment ID' }),
+    (0, swagger_1.ApiQuery)({
+        name: 'caisseId',
+        description: 'Caisse ID (optional)',
+        required: false,
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Installment marked as paid successfully',
+        schema: {
+            type: 'object',
+        },
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 400,
+        description: 'Installment already paid or invalid data',
+    }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Installment not found' }),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN),
+    __param(0, (0, common_1.Param)('installmentId')),
+    __param(1, (0, common_1.Query)('caisseId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", Promise)
+], PaymentsController.prototype, "markInstallmentAsPaid", null);
+__decorate([
+    (0, common_1.Get)('payments/statistics'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get payment statistics' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Payment statistics',
+        schema: {
+            type: 'object',
+            properties: {
+                totalPayments: { type: 'number' },
+                totalAmount: { type: 'number' },
+                pendingInstallments: { type: 'number' },
+                paidInstallments: { type: 'number' },
+                completionRate: { type: 'number' },
+            },
+        },
+    }),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN, client_1.UserRole.USER),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], PaymentsController.prototype, "getPaymentStatistics", null);
 exports.PaymentsController = PaymentsController = __decorate([
     (0, swagger_1.ApiTags)('Payments'),
     (0, swagger_1.ApiBearerAuth)(),

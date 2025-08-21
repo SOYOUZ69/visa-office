@@ -1,7 +1,7 @@
 export interface User {
   id: string;
   email: string;
-  role: 'ADMIN' | 'USER';
+  role: "ADMIN" | "USER";
   createdAt: string;
   updatedAt: string;
 }
@@ -30,7 +30,7 @@ export interface Attachment {
   originalName: string;
   mimetype: string;
   size: number;
-  type: 'PASSPORT' | 'VISA' | 'PHOTO' | 'DOCUMENT' | 'OTHER';
+  type: "PASSPORT" | "VISA" | "PHOTO" | "DOCUMENT" | "OTHER";
   path: string;
   clientId: string;
   createdAt: string;
@@ -49,8 +49,8 @@ export interface FamilyMember {
 
 export interface Client {
   id: string;
-  clientType: 'INDIVIDUAL' | 'FAMILY' | 'GROUP' | 'PHONE_CALL';
-  status: 'NEW' | 'IN_REVIEW' | 'PENDING_DOCS' | 'APPROVED' | 'REJECTED';
+  clientType: "INDIVIDUAL" | "FAMILY" | "GROUP" | "PHONE_CALL";
+  status: "NEW" | "IN_REVIEW" | "PENDING_DOCS" | "APPROVED" | "REJECTED";
   fullName: string;
   address: string;
   jobTitle?: string;
@@ -82,7 +82,7 @@ export interface ClientsResponse {
 }
 
 export interface CreateClientData {
-  clientType: Client['clientType'];
+  clientType: Client["clientType"];
   fullName: string;
   address: string;
   jobTitle?: string;
@@ -109,8 +109,8 @@ export interface QueryParams {
   page?: number;
   limit?: number;
   search?: string;
-  status?: Client['status'];
-  clientType?: Client['clientType'];
+  status?: Client["status"];
+  clientType?: Client["clientType"];
 }
 
 export interface ServiceItem {
@@ -140,9 +140,23 @@ export interface UpdateServiceData {
 }
 
 // Payment Types
-export type PaymentOption = 'BANK_TRANSFER' | 'CHEQUE' | 'POST' | 'CASH';
-export type PaymentModality = 'FULL_PAYMENT' | 'SIXTY_FORTY' | 'MILESTONE_PAYMENTS';
-export type InstallmentStatus = 'PENDING' | 'PAID';
+export type PaymentOption = "BANK_TRANSFER" | "CHEQUE" | "POST" | "CASH";
+export type PaymentModality =
+  | "FULL_PAYMENT"
+  | "SIXTY_FORTY"
+  | "MILESTONE_PAYMENTS";
+export type InstallmentStatus = "PENDING" | "PAID";
+
+export interface Caisse {
+  id: string;
+  name: string;
+  type: "VIRTUAL" | "CASH" | "BANK_ACCOUNT";
+  balance: string;
+  description?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface PaymentInstallment {
   id: string;
@@ -164,6 +178,8 @@ export interface Payment {
   paymentOption?: PaymentOption;
   paymentModality: PaymentModality;
   transferCode?: string;
+  caisseId?: string;
+  caisse?: Caisse;
   installments: PaymentInstallment[];
   createdAt: string;
   updatedAt: string;

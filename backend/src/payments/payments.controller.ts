@@ -9,6 +9,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -16,6 +17,7 @@ import {
   ApiResponse,
   ApiParam,
   ApiBearerAuth,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
@@ -44,7 +46,9 @@ export class PaymentsController {
   })
   @ApiResponse({ status: 404, description: 'Client not found' })
   @Roles(UserRole.ADMIN, UserRole.USER)
-  async getClientPayments(@Param('id') clientId: string): Promise<(Payment & { installments: PaymentInstallment[] })[]> {
+  async getClientPayments(
+    @Param('id') clientId: string,
+  ): Promise<(Payment & { installments: PaymentInstallment[] })[]> {
     return this.paymentsService.getClientPayments(clientId);
   }
 
@@ -94,5 +98,56 @@ export class PaymentsController {
   async deletePayment(@Param('paymentId') paymentId: string): Promise<void> {
     return this.paymentsService.deletePayment(paymentId);
   }
-}
 
+  @Post('installments/:installmentId/mark-paid')
+  @ApiOperation({
+    summary: 'Mark an installment as paid and create transaction',
+  })
+  @ApiParam({ name: 'installmentId', description: 'Installment ID' })
+  @ApiQuery({
+    name: 'caisseId',
+    description: 'Caisse ID (optional)',
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Installment marked as paid successfully',
+    schema: {
+      type: 'object',
+      // Define the schema for PaymentInstallment response
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Installment already paid or invalid data',
+  })
+  @ApiResponse({ status: 404, description: 'Installment not found' })
+  @Roles(UserRole.ADMIN)
+  async markInstallmentAsPaid(
+    @Param('installmentId') installmentId: string,
+    @Query('caisseId') caisseId?: string,
+  ): Promise<PaymentInstallment> {
+    return this.paymentsService.markInstallmentAsPaid(installmentId, caisseId);
+  }
+
+  @Get('payments/statistics')
+  @ApiOperation({ summary: 'Get payment statistics' })
+  @ApiResponse({
+    status: 200,
+    description: 'Payment statistics',
+    schema: {
+      type: 'object',
+      properties: {
+        totalPayments: { type: 'number' },
+        totalAmount: { type: 'number' },
+        pendingInstallments: { type: 'number' },
+        paidInstallments: { type: 'number' },
+        completionRate: { type: 'number' },
+      },
+    },
+  })
+  @Roles(UserRole.ADMIN, UserRole.USER)
+  async getPaymentStatistics() {
+    return this.paymentsService.getPaymentStatistics();
+  }
+}

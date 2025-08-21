@@ -9,6 +9,8 @@ import { ClientsModule } from './clients/clients.module';
 import { AttachmentsModule } from './attachments/attachments.module';
 import { ServicesModule } from './services/services.module';
 import { PaymentsModule } from './payments/payments.module';
+import { FinancialModule } from './financial/financial.module';
+import { EmployeeModule } from './employee/employee.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { PaymentsModule } from './payments/payments.module';
     AttachmentsModule,
     ServicesModule,
     PaymentsModule,
+    FinancialModule,
+    EmployeeModule,
   ],
   controllers: [AppController],
   providers: [AppService],

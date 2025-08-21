@@ -9,12 +9,25 @@ import {
   LayoutDashboard, 
   Users, 
   LogOut,
-  User
+  User,
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Receipt,
+  Calculator,
+  BarChart3,
+  Filter
 } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Client Portal', href: '/clients', icon: Users },
+  {
+    name: 'Système Financier',
+    href: '/financial',
+    icon: DollarSign,
+    current: false,
+  },
 ];
 
 export function Sidebar() {

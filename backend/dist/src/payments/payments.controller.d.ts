@@ -15,4 +15,12 @@ export declare class PaymentsController {
         installments: PaymentInstallment[];
     }>;
     deletePayment(paymentId: string): Promise<void>;
+    markInstallmentAsPaid(installmentId: string, caisseId?: string): Promise<PaymentInstallment>;
+    getPaymentStatistics(): Promise<{
+        totalPayments: number;
+        totalAmount: number | import("@prisma/client/runtime/library").Decimal;
+        pendingInstallments: number;
+        paidInstallments: number;
+        completionRate: number;
+    }>;
 }
