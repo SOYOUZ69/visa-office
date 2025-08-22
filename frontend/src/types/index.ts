@@ -63,6 +63,12 @@ export interface Client {
   guardianFullName?: string;
   guardianCIN?: string;
   guardianRelationship?: string;
+  assignedEmployeeId?: string;
+  assignedEmployee?: {
+    id: string;
+    fullName: string;
+    commissionPercentage: string;
+  };
   createdAt: string;
   updatedAt: string;
   phoneNumbers: PhoneNumber[];
@@ -119,6 +125,8 @@ export interface ServiceItem {
   serviceType: string;
   quantity: number;
   unitPrice: string;
+  isProcessed: boolean;
+  paymentId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -216,4 +224,119 @@ export interface UpdatePaymentData {
   paymentModality?: PaymentModality;
   transferCode?: string;
   installments?: CreatePaymentInstallmentData[];
+}
+
+// Employee Types
+export interface Employee {
+  id: string;
+  fullName: string;
+  salaryType: "MONTHLY" | "CLIENTCOMMISSION" | "PERIODCOMMISSION";
+  salaryAmount: string;
+  commissionPercentage: string;
+  soldeCoungiee: string;
+  createdAt: string;
+  updatedAt: string;
+  assignedClients?: Client[];
+  attendance?: Attendance[];
+  currentMonthAbsences?: number;
+  totalCommission?: number;
+  assignedClientsCount?: number;
+}
+
+export interface CreateEmployeeData {
+  fullName: string;
+  salaryType: Employee["salaryType"];
+  salaryAmount: number;
+  commissionPercentage: string;
+  soldeCoungiee?: number;
+}
+
+export interface UpdateEmployeeData {
+  fullName?: string;
+  salaryType?: Employee["salaryType"];
+  salaryAmount?: number;
+  commissionPercentage?: string;
+  soldeCoungiee?: number;
+}
+
+// Attendance Types
+export type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY";
+
+export interface Attendance {
+  id: string;
+  employeeId: string;
+  date: string;
+  status: AttendanceStatus;
+  reason?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAttendanceData {
+  date: string;
+  status: AttendanceStatus;
+  reason?: string;
+}
+
+// Commission Types
+export interface CommissionDetail {
+  clientId: string;
+  clientName: string;
+  paymentId: string;
+  paymentAmount: number;
+  commissionAmount: number;
+  commissionPercentage: string;
+}
+
+export interface CommissionReport {
+  employeeId: string;
+  employeeName: string;
+  commissionPercentage: string;
+  totalCommission: number;
+  commissionDetails: CommissionDetail[];
+  period: {
+    startDate: string;
+    endDate: string;
+  };
+}
+
+// Unprocessed Services Types
+export interface UnprocessedServicesResponse {
+  services: ServiceItem[];
+  totalAmount: number;
+  serviceCount: number;
+}
+
+// Financial Statistics Types
+export interface FinancialStatistics {
+  revenue: number;
+  expenses: number;
+  netProfit: number;
+  transactionCounts: {
+    total: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+  };
+  transactions: Transaction[];
+}
+
+export interface Transaction {
+  id: string;
+  caisseId: string;
+  caisse: Caisse;
+  type: "INCOME" | "EXPENSE" | "TRANSFER";
+  category?: string;
+  amount: string;
+  description: string;
+  reference?: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "COMPLETED" | "CANCELLED";
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectionReason?: string;
+  transactionDate: string;
+  createdAt: string;
+  updatedAt: string;
+  paymentId?: string;
+  payment?: Payment & { client: Client };
 }

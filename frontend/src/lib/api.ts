@@ -123,6 +123,19 @@ export const clientsAPI = {
     const response = await api.delete(`/api/v1/family-members/${id}`);
     return response.data;
   },
+  assignEmployee: async (clientId: string, employeeId: string) => {
+    const response = await api.post(
+      `/api/v1/clients/${clientId}/assign-employee`,
+      { employeeId }
+    );
+    return response.data;
+  },
+  unassignEmployee: async (clientId: string) => {
+    const response = await api.post(
+      `/api/v1/clients/${clientId}/unassign-employee`
+    );
+    return response.data;
+  },
 };
 
 // Attachments API
@@ -240,6 +253,12 @@ export const paymentsAPI = {
     const response = await api.get("/api/v1/payments/statistics");
     return response.data;
   },
+  getUnprocessedServices: async (clientId: string) => {
+    const response = await api.get(
+      `/api/v1/clients/${clientId}/unprocessed-services`
+    );
+    return response.data;
+  },
 };
 
 // Financial API
@@ -324,6 +343,15 @@ export const financialAPI = {
     );
     return response.data;
   },
+
+  // Financial statistics
+  getFinancialStatistics: async (startDate?: string, endDate?: string) => {
+    const params: any = {};
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    const response = await api.get("/api/v1/financial/statistics", { params });
+    return response.data;
+  },
 };
 
 // Employees API
@@ -332,16 +360,79 @@ export const employeesAPI = {
     const response = await api.get("/api/v1/employees");
     return response.data;
   },
+  getById: async (id: string) => {
+    const response = await api.get(`/api/v1/employees/${id}`);
+    return response.data;
+  },
   create: async (data: any) => {
     const response = await api.post("/api/v1/employees", data);
     return response.data;
   },
   update: async (id: string, data: any) => {
-    const response = await api.put(`/api/v1/employees/${id}`, data);
+    const response = await api.patch(`/api/v1/employees/${id}`, data);
     return response.data;
   },
   delete: async (id: string) => {
     const response = await api.delete(`/api/v1/employees/${id}`);
+    return response.data;
+  },
+
+  // Attendance management
+  markAttendance: async (employeeId: string, data: any) => {
+    const response = await api.post(
+      `/api/v1/employees/${employeeId}/attendance`,
+      data
+    );
+    return response.data;
+  },
+  getAttendance: async (
+    employeeId: string,
+    startDate?: string,
+    endDate?: string
+  ) => {
+    const params: any = {};
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    const response = await api.get(
+      `/api/v1/employees/${employeeId}/attendance`,
+      { params }
+    );
+    return response.data;
+  },
+
+  // Commission management
+  calculateCommission: async (
+    employeeId: string,
+    startDate?: string,
+    endDate?: string
+  ) => {
+    const params: any = {};
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    const response = await api.get(
+      `/api/v1/employees/${employeeId}/commission`,
+      { params }
+    );
+    return response.data;
+  },
+  calculateMonthlySoldeCoungiee: async (
+    employeeId: string,
+    month: number,
+    year: number
+  ) => {
+    const response = await api.post(
+      `/api/v1/employees/${employeeId}/calculate-solde`,
+      {
+        month,
+        year,
+      }
+    );
+    return response.data;
+  },
+
+  // Employee statistics
+  getEmployeesWithStats: async () => {
+    const response = await api.get("/api/v1/employees/stats/overview");
     return response.data;
   },
 };

@@ -30,6 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { paymentsAPI, metaAPI, servicesAPI } from "@/lib/api";
 import {
   Payment,
@@ -38,6 +39,7 @@ import {
   CreatePaymentData,
   ServiceItem,
   InstallmentStatus,
+  UnprocessedServicesResponse,
 } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -51,6 +53,8 @@ import {
   CheckCircle,
   Clock,
   DollarSign,
+  Package,
+  AlertCircle,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -135,6 +139,8 @@ export function PaymentSection({
 }: PaymentSectionProps) {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [services, setServices] = useState<ServiceItem[]>([]);
+  const [unprocessedServices, setUnprocessedServices] =
+    useState<UnprocessedServicesResponse | null>(null);
   const [paymentOptions, setPaymentOptions] = useState<PaymentOption[]>([]);
   const [paymentModalities, setPaymentModalities] = useState<PaymentModality[]>(
     []
@@ -145,6 +151,7 @@ export function PaymentSection({
   const [numberOfInstallments, setNumberOfInstallments] = useState(2);
   const [isEditing, setIsEditing] = useState(false);
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
+  const [showUnprocessedServices, setShowUnprocessedServices] = useState(false);
   const { user } = useAuth();
 
   const form = useForm<PaymentFormData>({
@@ -318,18 +325,17 @@ export function PaymentSection({
   ]);
 
   const loadData = async () => {
+    if (!clientId) return;
+    setLoading(true);
     try {
-      const [paymentsData, servicesData, optionsData, modalitiesData] =
-        await Promise.all([
-          paymentsAPI.getClientPayments(clientId),
-          servicesAPI.getClientServices(clientId),
-          metaAPI.getPaymentOptions(),
-          metaAPI.getPaymentModalities(),
-        ]);
+      const [paymentsData, servicesData, unprocessedData] = await Promise.all([
+        paymentsAPI.getClientPayments(clientId),
+        servicesAPI.getClientServices(clientId),
+        paymentsAPI.getUnprocessedServices(clientId),
+      ]);
       setPayments(paymentsData);
       setServices(servicesData);
-      setPaymentOptions(optionsData);
-      setPaymentModalities(modalitiesData);
+      setUnprocessedServices(unprocessedData);
     } catch (error) {
       console.error("Failed to load payment data:", error);
       toast.error("Failed to load payment data");
@@ -338,11 +344,37 @@ export function PaymentSection({
     }
   };
 
+  const loadUnprocessedServices = async () => {
+    if (!clientId) return;
+    try {
+      const data = await paymentsAPI.getUnprocessedServices(clientId);
+      setUnprocessedServices(data);
+    } catch (error) {
+      console.error("Failed to load unprocessed services:", error);
+      toast.error("Failed to load unprocessed services");
+    }
+  };
+
+  const loadMetaData = async () => {
+    try {
+      const [paymentOptionsData, paymentModalitiesData] = await Promise.all([
+        metaAPI.getPaymentOptions(),
+        metaAPI.getPaymentModalities(),
+      ]);
+      setPaymentOptions(paymentOptionsData);
+      setPaymentModalities(paymentModalitiesData);
+    } catch (error) {
+      console.error("Failed to load metadata:", error);
+      toast.error("Failed to load payment options");
+    }
+  };
+
   // Function to refresh services data
   const refreshServices = async () => {
     try {
-      const servicesData = await servicesAPI.getClientServices(clientId);
+      const servicesData = await servicesAPI.getClientServices(clientId!);
       setServices(servicesData);
+      await loadUnprocessedServices();
     } catch (error) {
       console.error("Failed to refresh services:", error);
     }
@@ -357,7 +389,7 @@ export function PaymentSection({
         {
           description: "Full Payment",
           percentage: 100,
-          amount: servicesTotal,
+          amount: unprocessedServices?.totalAmount || servicesTotal,
           dueDate: "",
           status: "PENDING",
         },
@@ -368,22 +400,6 @@ export function PaymentSection({
   const handleAddNewPayment = () => {
     setShowNewPaymentForm(true);
     resetPaymentForm();
-  };
-
-  const loadMetaData = async () => {
-    try {
-      const [optionsData, modalitiesData] = await Promise.all([
-        metaAPI.getPaymentOptions(),
-        metaAPI.getPaymentModalities(),
-      ]);
-      setPaymentOptions(optionsData);
-      setPaymentModalities(modalitiesData);
-    } catch (error) {
-      console.error("Failed to load payment metadata:", error);
-      toast.error("Failed to load payment options");
-    } finally {
-      setLoading(false);
-    }
   };
 
   const addInstallment = () => {
@@ -805,6 +821,94 @@ export function PaymentSection({
             </span>
           </div>
         </div>
+
+        {/* Unprocessed Services Section */}
+        {unprocessedServices && unprocessedServices.serviceCount > 0 && (
+          <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Package className="h-5 w-5 text-orange-600" />
+                <span className="text-sm font-medium text-orange-900">
+                  Unprocessed Services Available
+                </span>
+                <Badge
+                  variant="secondary"
+                  className="bg-orange-100 text-orange-800"
+                >
+                  {unprocessedServices.serviceCount} services
+                </Badge>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setShowUnprocessedServices(!showUnprocessedServices)
+                }
+                className="text-orange-600 border-orange-300 hover:bg-orange-100"
+              >
+                {showUnprocessedServices ? "Hide Details" : "Show Details"}
+              </Button>
+            </div>
+
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-orange-800">
+                Total unprocessed amount:
+              </span>
+              <span className="text-lg font-bold text-orange-900">
+                {formatCurrency(unprocessedServices.totalAmount)}
+              </span>
+            </div>
+
+            {showUnprocessedServices && (
+              <div className="mt-4">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Service Type</TableHead>
+                      <TableHead>Quantity</TableHead>
+                      <TableHead>Unit Price</TableHead>
+                      <TableHead>Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {unprocessedServices.services.map((service) => (
+                      <TableRow key={service.id}>
+                        <TableCell className="font-medium">
+                          {service.serviceType.replace("_", " ")}
+                        </TableCell>
+                        <TableCell>{service.quantity}</TableCell>
+                        <TableCell>
+                          {formatCurrency(parseFloat(service.unitPrice))}
+                        </TableCell>
+                        <TableCell>
+                          {formatCurrency(
+                            service.quantity * parseFloat(service.unitPrice)
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+
+            <div className="mt-4 p-3 bg-orange-100 rounded-lg">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-orange-600 mt-0.5" />
+                <div className="text-sm text-orange-800">
+                  <p className="font-medium">
+                    Payment will be calculated from unprocessed services
+                  </p>
+                  <p className="text-xs mt-1">
+                    When you create a payment, it will automatically include all
+                    unprocessed services and mark them as processed.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {isAdmin && shouldShowConfigForm && (
           <form className="space-y-6">

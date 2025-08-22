@@ -1,16 +1,50 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { clientsAPI, attachmentsAPI } from '@/lib/api';
-import { Client, Attachment } from '@/types';
-import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
-import { Download, Trash2, Upload, User, Phone, Building2, FileText, Users, Shield, CreditCard, Heart } from 'lucide-react';
-import { ServicesSection } from '@/components/clients/ServicesSection';
-import { PaymentSection } from '@/components/clients/PaymentSection';
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { clientsAPI, attachmentsAPI, employeesAPI } from "@/lib/api";
+import { Client, Attachment, Employee } from "@/types";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  Download,
+  Trash2,
+  Upload,
+  User,
+  Phone,
+  Building2,
+  FileText,
+  Users,
+  Shield,
+  CreditCard,
+  Heart,
+  UserPlus,
+  UserMinus,
+} from "lucide-react";
+import { ServicesSection } from "@/components/clients/ServicesSection";
+import { PaymentSection } from "@/components/clients/PaymentSection";
 
 interface ClientDetailProps {
   clientId: string;
@@ -19,8 +53,11 @@ interface ClientDetailProps {
 export function ClientDetail({ clientId }: ClientDetailProps) {
   const [client, setClient] = useState<Client | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const { user } = useAuth();
 
   useEffect(() => {
@@ -30,45 +67,49 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
   const loadClientData = async () => {
     setLoading(true);
     try {
-      const [clientData, attachmentsData] = await Promise.all([
+      const [clientData, attachmentsData, employeesData] = await Promise.all([
         clientsAPI.getById(clientId),
         attachmentsAPI.getByClient(clientId),
+        employeesAPI.getAll(),
       ]);
       setClient(clientData);
       setAttachments(attachmentsData);
+      setEmployees(employeesData);
     } catch (error) {
-      toast.error('Failed to load client data');
-      console.error('Failed to load client data:', error);
+      toast.error("Failed to load client data");
+      console.error("Failed to load client data:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setUploading(true);
     try {
-      await attachmentsAPI.upload(clientId, file, 'DOCUMENT');
-      toast.success('File uploaded successfully');
+      await attachmentsAPI.upload(clientId, file, "DOCUMENT");
+      toast.success("File uploaded successfully");
       loadClientData(); // Reload attachments
     } catch (error) {
-      toast.error('Failed to upload file');
+      toast.error("Failed to upload file");
     } finally {
       setUploading(false);
     }
   };
 
   const handleDeleteAttachment = async (attachmentId: string) => {
-    if (!confirm('Are you sure you want to delete this file?')) return;
+    if (!confirm("Are you sure you want to delete this file?")) return;
 
     try {
       await attachmentsAPI.delete(attachmentId);
-      toast.success('File deleted successfully');
+      toast.success("File deleted successfully");
       loadClientData(); // Reload attachments
     } catch (error) {
-      toast.error('Failed to delete file');
+      toast.error("Failed to delete file");
     }
   };
 
@@ -76,7 +117,7 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
     try {
       const blob = await attachmentsAPI.download(attachment.id);
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = attachment.originalName;
       document.body.appendChild(a);
@@ -84,32 +125,61 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (error) {
-      toast.error('Failed to download file');
+      toast.error("Failed to download file");
+    }
+  };
+
+  const handleAssignEmployee = async () => {
+    if (!selectedEmployeeId) {
+      toast.error("Please select an employee");
+      return;
+    }
+
+    try {
+      await clientsAPI.assignEmployee(clientId, selectedEmployeeId);
+      toast.success("Employee assigned successfully");
+      setIsAssignDialogOpen(false);
+      setSelectedEmployeeId("");
+      loadClientData(); // Reload client data to get updated assignment
+    } catch (error) {
+      toast.error("Failed to assign employee");
+    }
+  };
+
+  const handleUnassignEmployee = async () => {
+    if (!confirm("Are you sure you want to unassign this employee?")) return;
+
+    try {
+      await clientsAPI.unassignEmployee(clientId);
+      toast.success("Employee unassigned successfully");
+      loadClientData(); // Reload client data
+    } catch (error) {
+      toast.error("Failed to unassign employee");
     }
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'APPROVED':
-        return 'bg-green-100 text-green-800';
-      case 'REJECTED':
-        return 'bg-red-100 text-red-800';
-      case 'IN_REVIEW':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'PENDING_DOCS':
-        return 'bg-orange-100 text-orange-800';
+      case "APPROVED":
+        return "bg-green-100 text-green-800";
+      case "REJECTED":
+        return "bg-red-100 text-red-800";
+      case "IN_REVIEW":
+        return "bg-yellow-100 text-yellow-800";
+      case "PENDING_DOCS":
+        return "bg-orange-100 text-orange-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -148,7 +218,9 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-gray-500">Full Name</label>
+              <label className="text-sm font-medium text-gray-500">
+                Full Name
+              </label>
               <p className="text-lg font-semibold">{client.fullName}</p>
             </div>
             <div>
@@ -156,43 +228,61 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
               <p className="text-lg">{client.email}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500">Address</label>
+              <label className="text-sm font-medium text-gray-500">
+                Address
+              </label>
               <p className="text-lg">{client.address}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500">Destination</label>
+              <label className="text-sm font-medium text-gray-500">
+                Destination
+              </label>
               <p className="text-lg">{client.destination}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500">Job Title</label>
-              <p className="text-lg">{client.jobTitle || 'N/A'}</p>
+              <label className="text-sm font-medium text-gray-500">
+                Job Title
+              </label>
+              <p className="text-lg">{client.jobTitle || "N/A"}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500">Passport Number</label>
-              <p className="text-lg">{client.passportNumber || 'N/A'}</p>
+              <label className="text-sm font-medium text-gray-500">
+                Passport Number
+              </label>
+              <p className="text-lg">{client.passportNumber || "N/A"}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500">Visa Type</label>
+              <label className="text-sm font-medium text-gray-500">
+                Visa Type
+              </label>
               <p className="text-lg">{client.visaType}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500">Client Type</label>
-              <p className="text-lg">{client.clientType.replace('_', ' ')}</p>
+              <label className="text-sm font-medium text-gray-500">
+                Client Type
+              </label>
+              <p className="text-lg">{client.clientType.replace("_", " ")}</p>
             </div>
           </div>
           <div>
             <label className="text-sm font-medium text-gray-500">Status</label>
             <div className="mt-1">
               <Badge className={getStatusColor(client.status)}>
-                {client.status.replace('_', ' ')}
+                {client.status.replace("_", " ")}
               </Badge>
             </div>
           </div>
           <div>
             <label className="text-sm font-medium text-gray-500">Mineur</label>
             <div className="mt-1">
-              <Badge className={client.isMinor ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-800'}>
-                {client.isMinor ? 'Oui' : 'Non'}
+              <Badge
+                className={
+                  client.isMinor
+                    ? "bg-orange-100 text-orange-800"
+                    : "bg-gray-100 text-gray-800"
+                }
+              >
+                {client.isMinor ? "Oui" : "Non"}
               </Badge>
             </div>
           </div>
@@ -206,41 +296,170 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
       </Card>
 
       {/* Guardian Information */}
-      {client.isMinor && (client.guardianFullName || client.guardianCIN || client.guardianRelationship) && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Shield className="h-5 w-5" />
-              <span>Guardian Information</span>
-            </CardTitle>
-            <CardDescription>
-              Information du tuteur légal (client mineur)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {client.guardianFullName && (
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Nom complet du tuteur</label>
-                  <p className="text-lg font-semibold">{client.guardianFullName}</p>
-                </div>
-              )}
-              {client.guardianCIN && (
-                <div>
-                  <label className="text-sm font-medium text-gray-500">CIN du tuteur</label>
-                  <p className="text-lg">{client.guardianCIN}</p>
-                </div>
-              )}
-              {client.guardianRelationship && (
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Relation</label>
-                  <p className="text-lg">{client.guardianRelationship}</p>
-                </div>
+      {client.isMinor &&
+        (client.guardianFullName ||
+          client.guardianCIN ||
+          client.guardianRelationship) && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Shield className="h-5 w-5" />
+                <span>Guardian Information</span>
+              </CardTitle>
+              <CardDescription>
+                Information du tuteur légal (client mineur)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {client.guardianFullName && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">
+                      Nom complet du tuteur
+                    </label>
+                    <p className="text-lg font-semibold">
+                      {client.guardianFullName}
+                    </p>
+                  </div>
+                )}
+                {client.guardianCIN && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">
+                      CIN du tuteur
+                    </label>
+                    <p className="text-lg">{client.guardianCIN}</p>
+                  </div>
+                )}
+                {client.guardianRelationship && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">
+                      Relation
+                    </label>
+                    <p className="text-lg">{client.guardianRelationship}</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+      {/* Employee Assignment */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <UserPlus className="h-5 w-5" />
+              <span>Assigned Employee</span>
+            </div>
+            <div className="flex space-x-2">
+              {!client.assignedEmployee ? (
+                <Dialog
+                  open={isAssignDialogOpen}
+                  onOpenChange={setIsAssignDialogOpen}
+                >
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline">
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Assign Employee
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Assign Employee to Client</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium">
+                          Select Employee
+                        </label>
+                        <Select
+                          value={selectedEmployeeId}
+                          onValueChange={setSelectedEmployeeId}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choose an employee" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {employees.map((employee) => (
+                              <SelectItem key={employee.id} value={employee.id}>
+                                {employee.fullName} (
+                                {employee.commissionPercentage}% commission)
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex justify-end space-x-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => setIsAssignDialogOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button onClick={handleAssignEmployee}>
+                          Assign Employee
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleUnassignEmployee}
+                >
+                  <UserMinus className="h-4 w-4 mr-2" />
+                  Unassign
+                </Button>
               )}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </CardTitle>
+          <CardDescription>
+            Employee responsible for this client and commission tracking
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {client.assignedEmployee ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">
+                    Assigned Employee
+                  </label>
+                  <p className="text-lg font-semibold">
+                    {client.assignedEmployee.fullName}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">
+                    Commission Rate
+                  </label>
+                  <p className="text-lg">
+                    {client.assignedEmployee.commissionPercentage}%
+                  </p>
+                </div>
+              </div>
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Note:</strong> This employee will receive commission
+                  on all payments from this client.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <UserPlus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">
+                No employee assigned to this client
+              </p>
+              <p className="text-sm text-gray-400 mt-2">
+                Assign an employee to track commissions and responsibilities
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Phone Numbers */}
       {client.phoneNumbers.length > 0 && (
@@ -317,7 +536,9 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
                     )}
                     {member.age && (
                       <div className="flex items-center gap-2">
-                        <span className="h-3 w-3 flex items-center justify-center text-xs rounded-full bg-gray-200">#</span>
+                        <span className="h-3 w-3 flex items-center justify-center text-xs rounded-full bg-gray-200">
+                          #
+                        </span>
                         <span>Age: {member.age}</span>
                       </div>
                     )}
@@ -336,12 +557,10 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
             <FileText className="h-5 w-5" />
             <span>Documents</span>
           </CardTitle>
-          <CardDescription>
-            Upload and manage client documents
-          </CardDescription>
+          <CardDescription>Upload and manage client documents</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {user?.role === 'ADMIN' && (
+          {user?.role === "ADMIN" && (
             <div className="flex items-center space-x-2">
               <input
                 type="file"
@@ -353,17 +572,23 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
               <Upload className="h-4 w-4 text-gray-400" />
             </div>
           )}
-          
+
           {attachments.length > 0 ? (
             <div className="space-y-2">
               {attachments.map((attachment) => (
-                <div key={attachment.id} className="flex items-center justify-between p-3 border rounded-lg">
+                <div
+                  key={attachment.id}
+                  className="flex items-center justify-between p-3 border rounded-lg"
+                >
                   <div className="flex items-center space-x-3">
                     <FileText className="h-5 w-5 text-gray-400" />
                     <div>
-                      <div className="font-medium">{attachment.originalName}</div>
+                      <div className="font-medium">
+                        {attachment.originalName}
+                      </div>
                       <div className="text-sm text-gray-500">
-                        {attachment.type} • {(attachment.size / 1024 / 1024).toFixed(2)} MB
+                        {attachment.type} •{" "}
+                        {(attachment.size / 1024 / 1024).toFixed(2)} MB
                       </div>
                     </div>
                   </div>
@@ -375,7 +600,7 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
                     >
                       <Download className="h-4 w-4" />
                     </Button>
-                    {user?.role === 'ADMIN' && (
+                    {user?.role === "ADMIN" && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -389,7 +614,9 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
               ))}
             </div>
           ) : (
-            <p className="text-gray-500 text-center py-4">No documents uploaded yet.</p>
+            <p className="text-gray-500 text-center py-4">
+              No documents uploaded yet.
+            </p>
           )}
         </CardContent>
       </Card>
@@ -408,11 +635,15 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-gray-500">Created</label>
+              <label className="text-sm font-medium text-gray-500">
+                Created
+              </label>
               <p className="text-lg">{formatDate(client.createdAt)}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500">Last Updated</label>
+              <label className="text-sm font-medium text-gray-500">
+                Last Updated
+              </label>
               <p className="text-lg">{formatDate(client.updatedAt)}</p>
             </div>
           </div>
