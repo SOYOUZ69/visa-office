@@ -86,7 +86,11 @@ export interface ClientsResponse {
     totalPages: number;
   };
 }
-
+export interface ClientFormProps {
+  clientType: Client["clientType"];
+  client?: Client;
+  isEdit?: boolean;
+}
 export interface CreateClientData {
   clientType: Client["clientType"];
   fullName: string;

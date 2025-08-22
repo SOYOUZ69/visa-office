@@ -1,85 +1,43 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useForm, useFieldArray } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { clientsAPI, metaAPI, attachmentsAPI } from '@/lib/api';
-import { CreateClientData, Client } from '@/types';
-import { toast } from 'sonner';
-import { Plus, Trash2, Upload } from 'lucide-react';
-import { ServicesSection } from './ServicesSection';
-import { PaymentSection } from './PaymentSection';
-
-const createClientSchema = z.object({
-  clientType: z.enum(['INDIVIDUAL', 'FAMILY', 'GROUP', 'PHONE_CALL']),
-  fullName: z.string().min(1, 'Full name is required'),
-  address: z.string().min(1, 'Address is required'),
-  jobTitle: z.string().optional(),
-  passportNumber: z.string().optional(),
-  email: z.string().email('Invalid email address'),
-  destination: z.string().min(1, 'Destination is required'),
-  visaType: z.string().min(1, 'Visa type is required'),
-  notes: z.string().optional(),
-  isMinor: z.boolean().optional().default(false),
-  guardianFullName: z.string().optional(),
-  guardianCIN: z.string().optional(),
-  guardianRelationship: z.string().optional(),
-  phoneNumbers: z.array(z.object({
-    number: z.string().min(1, 'Phone number is required'),
-  })).default([]),
-  employers: z.array(z.object({
-    name: z.string().min(1, 'Employer name is required'),
-    position: z.string().optional(),
-  })).default([]),
-  familyMembers: z.array(z.object({
-    fullName: z.string().min(1, 'Full name is required'),
-    passportNumber: z.string().min(1, 'Passport number is required'),
-    relationship: z.string().optional(),
-    age: z.number().min(0).optional(),
-  })).default([]),
-}).refine((data) => {
-  if (data.clientType !== 'PHONE_CALL' && !data.passportNumber) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'Passport number is required for non-phone call clients',
-  path: ['passportNumber'],
-}).refine((data) => {
-  if (data.clientType === 'INDIVIDUAL' && data.isMinor && (!data.guardianFullName || !data.guardianCIN || !data.guardianRelationship)) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'Guardian information is required for minor individual clients',
-  path: ['guardianFullName'],
-}).refine((data) => {
-  if ((data.clientType === 'FAMILY' || data.clientType === 'GROUP') && data.familyMembers.length === 0) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'At least one family member is required for FAMILY and GROUP client types',
-  path: ['familyMembers'],
-});
-
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { clientsAPI, metaAPI, attachmentsAPI } from "@/lib/api";
+import { CreateClientData, Client, ClientFormProps } from "@/types";
+import { toast } from "sonner";
+import { Plus, Trash2, Upload } from "lucide-react";
+import { ServicesSection } from "./ServicesSection";
+import { PaymentSection } from "./PaymentSection";
+import { createClientSchema } from "@/lib/schema/createClient.schema";
+import { getClientFormDefaults } from "@/lib/forms/clientFormDefaults";
 type ClientFormData = z.infer<typeof createClientSchema>;
 
-interface ClientFormProps {
-  clientType: Client['clientType'];
-  client?: Client;
-  isEdit?: boolean;
-}
-
-export function ClientForm({ clientType, client, isEdit = false }: ClientFormProps) {
+export function ClientForm({
+  clientType,
+  client,
+  isEdit = false,
+}: ClientFormProps) {
   const [loading, setLoading] = useState(false);
   const [visaTypes, setVisaTypes] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -94,44 +52,34 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
     watch,
   } = useForm<ClientFormData>({
     resolver: zodResolver(createClientSchema),
-    defaultValues: {
-      clientType,
-      fullName: client?.fullName || '',
-      address: client?.address || '',
-      jobTitle: client?.jobTitle || '',
-      passportNumber: client?.passportNumber || '',
-      email: client?.email || '',
-      destination: client?.destination || '',
-      visaType: client?.visaType || '',
-      notes: client?.notes || '',
-      isMinor: client?.isMinor || false,
-      guardianFullName: client?.guardianFullName || '',
-      guardianCIN: client?.guardianCIN || '',
-      guardianRelationship: client?.guardianRelationship || '',
-      phoneNumbers: client?.phoneNumbers.map(p => ({ number: p.number })) || [],
-      employers: client?.employers.map(e => ({ name: e.name, position: e.position })) || [],
-      familyMembers: client?.familyMembers.map(f => ({ 
-        fullName: f.fullName, 
-        passportNumber: f.passportNumber, 
-        relationship: f.relationship,
-        age: f.age 
-      })) || [],
-    },
+    defaultValues: getClientFormDefaults(client, clientType),
   });
 
-  const { fields: phoneFields, append: appendPhone, remove: removePhone } = useFieldArray({
+  const {
+    fields: phoneFields,
+    append: appendPhone,
+    remove: removePhone,
+  } = useFieldArray({
     control,
-    name: 'phoneNumbers',
+    name: "phoneNumbers",
   });
 
-  const { fields: employerFields, append: appendEmployer, remove: removeEmployer } = useFieldArray({
+  const {
+    fields: employerFields,
+    append: appendEmployer,
+    remove: removeEmployer,
+  } = useFieldArray({
     control,
-    name: 'employers',
+    name: "employers",
   });
 
-  const { fields: familyMemberFields, append: appendFamilyMember, remove: removeFamilyMember } = useFieldArray({
+  const {
+    fields: familyMemberFields,
+    append: appendFamilyMember,
+    remove: removeFamilyMember,
+  } = useFieldArray({
     control,
-    name: 'familyMembers',
+    name: "familyMembers",
   });
 
   useEffect(() => {
@@ -143,7 +91,7 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
       const types = await metaAPI.getVisaTypes();
       setVisaTypes(types);
     } catch (error) {
-      console.error('Failed to load visa types:', error);
+      console.error("Failed to load visa types:", error);
     }
   };
 
@@ -154,36 +102,37 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
 
       // Prepare data, only include guardian fields when necessary
       const submitData = { ...data };
-      if (!(data.clientType === 'INDIVIDUAL' && data.isMinor)) {
+      if (!(data.clientType === "INDIVIDUAL" && data.isMinor)) {
         delete submitData.guardianFullName;
         delete submitData.guardianCIN;
         delete submitData.guardianRelationship;
       }
 
       // Only include familyMembers for FAMILY and GROUP types
-      if (!(data.clientType === 'FAMILY' || data.clientType === 'GROUP')) {
+      if (!(data.clientType === "FAMILY" || data.clientType === "GROUP")) {
         delete submitData.familyMembers;
       }
 
       if (isEdit && client) {
         await clientsAPI.update(client.id, submitData);
         clientId = client.id;
-        toast.success('Client updated successfully');
+        toast.success("Client updated successfully");
       } else {
         const newClient = await clientsAPI.create(submitData);
         clientId = newClient.id;
-        toast.success('Client created successfully');
+        toast.success("Client created successfully");
       }
 
       // Upload file if selected
       if (selectedFile) {
-        await attachmentsAPI.upload(clientId, selectedFile, 'PASSPORT');
-        toast.success('File uploaded successfully');
+        await attachmentsAPI.upload(clientId, selectedFile, "PASSPORT");
+        toast.success("File uploaded successfully");
       }
 
       router.push(`/clients/${clientId}`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to save client';
+      const message =
+        error instanceof Error ? error.message : "Failed to save client";
       toast.error(message);
     } finally {
       setLoading(false);
@@ -212,12 +161,11 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Full Name *
               </label>
-              <Input
-                {...register('fullName')}
-                placeholder="Enter full name"
-              />
+              <Input {...register("fullName")} placeholder="Enter full name" />
               {errors.fullName && (
-                <p className="mt-1 text-sm text-red-600">{errors.fullName.message}</p>
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.fullName.message}
+                </p>
               )}
             </div>
 
@@ -227,11 +175,13 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
               </label>
               <Input
                 type="email"
-                {...register('email')}
+                {...register("email")}
                 placeholder="Enter email address"
               />
               {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.email.message}
+                </p>
               )}
             </div>
 
@@ -239,12 +189,11 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Address *
               </label>
-              <Input
-                {...register('address')}
-                placeholder="Enter address"
-              />
+              <Input {...register("address")} placeholder="Enter address" />
               {errors.address && (
-                <p className="mt-1 text-sm text-red-600">{errors.address.message}</p>
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.address.message}
+                </p>
               )}
             </div>
 
@@ -253,11 +202,13 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
                 Destination *
               </label>
               <Input
-                {...register('destination')}
+                {...register("destination")}
                 placeholder="Enter destination"
               />
               {errors.destination && (
-                <p className="mt-1 text-sm text-red-600">{errors.destination.message}</p>
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.destination.message}
+                </p>
               )}
             </div>
 
@@ -265,23 +216,22 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Job Title
               </label>
-              <Input
-                {...register('jobTitle')}
-                placeholder="Enter job title"
-              />
+              <Input {...register("jobTitle")} placeholder="Enter job title" />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Passport Number {clientType !== 'PHONE_CALL' && '*'}
+                Passport Number {clientType !== "PHONE_CALL" && "*"}
               </label>
               <Input
-                {...register('passportNumber')}
+                {...register("passportNumber")}
                 placeholder="Enter passport number"
-                disabled={clientType === 'PHONE_CALL'}
+                disabled={clientType === "PHONE_CALL"}
               />
               {errors.passportNumber && (
-                <p className="mt-1 text-sm text-red-600">{errors.passportNumber.message}</p>
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.passportNumber.message}
+                </p>
               )}
             </div>
 
@@ -290,8 +240,8 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
                 Visa Type *
               </label>
               <Select
-                value={watch('visaType')}
-                onValueChange={(value) => setValue('visaType', value)}
+                value={watch("visaType")}
+                onValueChange={(value) => setValue("visaType", value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select visa type" />
@@ -305,7 +255,9 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
                 </SelectContent>
               </Select>
               {errors.visaType && (
-                <p className="mt-1 text-sm text-red-600">{errors.visaType.message}</p>
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.visaType.message}
+                </p>
               )}
             </div>
           </div>
@@ -315,7 +267,7 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
               Notes
             </label>
             <Textarea
-              {...register('notes')}
+              {...register("notes")}
               placeholder="Enter any additional notes"
               rows={3}
             />
@@ -324,8 +276,10 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
           <div className="flex items-center space-x-2">
             <Checkbox
               id="isMinor"
-              checked={watch('isMinor')}
-              onCheckedChange={(checked) => setValue('isMinor', checked as boolean)}
+              checked={watch("isMinor")}
+              onCheckedChange={(checked) =>
+                setValue("isMinor", checked as boolean)
+              }
             />
             <label
               htmlFor="isMinor"
@@ -338,7 +292,7 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
       </Card>
 
       {/* Guardian Section - shown only for INDIVIDUAL clients who are minors */}
-      {watch('clientType') === 'INDIVIDUAL' && watch('isMinor') && (
+      {watch("clientType") === "INDIVIDUAL" && watch("isMinor") && (
         <Card>
           <CardHeader>
             <CardTitle>Guardian Information</CardTitle>
@@ -353,11 +307,13 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
                   Guardian Full Name *
                 </label>
                 <Input
-                  {...register('guardianFullName')}
+                  {...register("guardianFullName")}
                   placeholder="Enter guardian full name"
                 />
                 {errors.guardianFullName && (
-                  <p className="mt-1 text-sm text-red-600">{errors.guardianFullName.message}</p>
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.guardianFullName.message}
+                  </p>
                 )}
               </div>
 
@@ -366,11 +322,13 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
                   Guardian CIN *
                 </label>
                 <Input
-                  {...register('guardianCIN')}
+                  {...register("guardianCIN")}
                   placeholder="Enter guardian CIN"
                 />
                 {errors.guardianCIN && (
-                  <p className="mt-1 text-sm text-red-600">{errors.guardianCIN.message}</p>
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.guardianCIN.message}
+                  </p>
                 )}
               </div>
 
@@ -379,8 +337,10 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
                   Relationship *
                 </label>
                 <Select
-                  value={watch('guardianRelationship')}
-                  onValueChange={(value) => setValue('guardianRelationship', value)}
+                  value={watch("guardianRelationship")}
+                  onValueChange={(value) =>
+                    setValue("guardianRelationship", value)
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select relationship" />
@@ -397,7 +357,9 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
                   </SelectContent>
                 </Select>
                 {errors.guardianRelationship && (
-                  <p className="mt-1 text-sm text-red-600">{errors.guardianRelationship.message}</p>
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.guardianRelationship.message}
+                  </p>
                 )}
               </div>
             </div>
@@ -409,9 +371,7 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
       <Card>
         <CardHeader>
           <CardTitle>Phone Numbers</CardTitle>
-          <CardDescription>
-            Add phone numbers for the client
-          </CardDescription>
+          <CardDescription>Add phone numbers for the client</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {phoneFields.map((field, index) => (
@@ -434,7 +394,7 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
           <Button
             type="button"
             variant="outline"
-            onClick={() => appendPhone({ number: '' })}
+            onClick={() => appendPhone({ number: "" })}
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Phone Number
@@ -446,13 +406,14 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
       <Card>
         <CardHeader>
           <CardTitle>Employers</CardTitle>
-          <CardDescription>
-            Add employer information
-          </CardDescription>
+          <CardDescription>Add employer information</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {employerFields.map((field, index) => (
-            <div key={field.id} className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div
+              key={field.id}
+              className="grid grid-cols-1 md:grid-cols-2 gap-2"
+            >
               <Input
                 {...register(`employers.${index}.name`)}
                 placeholder="Employer name"
@@ -477,7 +438,7 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
           <Button
             type="button"
             variant="outline"
-            onClick={() => appendEmployer({ name: '', position: '' })}
+            onClick={() => appendEmployer({ name: "", position: "" })}
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Employer
@@ -486,19 +447,23 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
       </Card>
 
       {/* Family Members */}
-      {(watch('clientType') === 'FAMILY' || watch('clientType') === 'GROUP') && (
+      {(watch("clientType") === "FAMILY" ||
+        watch("clientType") === "GROUP") && (
         <Card>
           <CardHeader>
             <CardTitle>Members</CardTitle>
-            <CardDescription>
-              Add family or group members
-            </CardDescription>
+            <CardDescription>Add family or group members</CardDescription>
           </CardHeader>
           <CardContent>
             {familyMemberFields.map((field, index) => (
-              <div key={field.id} className="grid grid-cols-12 gap-4 mb-4 p-4 border rounded-lg">
+              <div
+                key={field.id}
+                className="grid grid-cols-12 gap-4 mb-4 p-4 border rounded-lg"
+              >
                 <div className="col-span-12 sm:col-span-4">
-                  <label className="block text-sm font-medium mb-1">Full Name *</label>
+                  <label className="block text-sm font-medium mb-1">
+                    Full Name *
+                  </label>
                   <Input
                     {...register(`familyMembers.${index}.fullName`)}
                     placeholder="Full name"
@@ -510,7 +475,9 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
                   )}
                 </div>
                 <div className="col-span-12 sm:col-span-4">
-                  <label className="block text-sm font-medium mb-1">Passport Number *</label>
+                  <label className="block text-sm font-medium mb-1">
+                    Passport Number *
+                  </label>
                   <Input
                     {...register(`familyMembers.${index}.passportNumber`)}
                     placeholder="Passport number"
@@ -522,10 +489,14 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
                   )}
                 </div>
                 <div className="col-span-8 sm:col-span-2">
-                  <label className="block text-sm font-medium mb-1">Relationship</label>
+                  <label className="block text-sm font-medium mb-1">
+                    Relationship
+                  </label>
                   <Select
-                    value={watch(`familyMembers.${index}.relationship`) || ''}
-                    onValueChange={(value) => setValue(`familyMembers.${index}.relationship`, value)}
+                    value={watch(`familyMembers.${index}.relationship`) || ""}
+                    onValueChange={(value) =>
+                      setValue(`familyMembers.${index}.relationship`, value)
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select relationship" />
@@ -575,7 +546,14 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
             <Button
               type="button"
               variant="outline"
-              onClick={() => appendFamilyMember({ fullName: '', passportNumber: '', relationship: '', age: undefined })}
+              onClick={() =>
+                appendFamilyMember({
+                  fullName: "",
+                  passportNumber: "",
+                  relationship: "",
+                  age: undefined,
+                })
+              }
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Member
@@ -593,9 +571,7 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
       <Card>
         <CardHeader>
           <CardTitle>Documents</CardTitle>
-          <CardDescription>
-            Upload passport or visa documents
-          </CardDescription>
+          <CardDescription>Upload passport or visa documents</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center space-x-2">
@@ -628,15 +604,11 @@ export function ClientForm({ clientType, client, isEdit = false }: ClientFormPro
       )}
 
       <div className="flex justify-end space-x-4">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => router.back()}
-        >
+        <Button type="button" variant="outline" onClick={() => router.back()}>
           Cancel
         </Button>
         <Button type="submit" disabled={loading}>
-          {loading ? 'Saving...' : (isEdit ? 'Update Client' : 'Create Client')}
+          {loading ? "Saving..." : isEdit ? "Update Client" : "Create Client"}
         </Button>
       </div>
     </form>
