@@ -28,4 +28,19 @@ export declare class PaymentsService {
         paidInstallments: number;
         completionRate: number;
     }>;
+    getUnprocessedServices(clientId: string): Promise<{
+        services: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            serviceType: import("@prisma/client").$Enums.ServiceType;
+            quantity: number;
+            unitPrice: import("@prisma/client/runtime/library").Decimal;
+            clientId: string;
+            isProcessed: boolean;
+            paymentId: string | null;
+        }[];
+        totalAmount: number;
+        serviceCount: number;
+    }>;
 }

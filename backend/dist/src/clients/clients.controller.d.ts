@@ -58,6 +58,7 @@ export declare class ClientsController {
         guardianCIN: string | null;
         guardianRelationship: string | null;
         status: import("@prisma/client").$Enums.ClientStatus;
+        assignedEmployeeId: string | null;
     }>;
     createPhoneCallClient(createPhoneCallClientDto: CreatePhoneCallClientDto): Promise<({
         phoneNumbers: {
@@ -100,6 +101,8 @@ export declare class ClientsController {
             quantity: number;
             unitPrice: import("@prisma/client/runtime/library").Decimal;
             clientId: string;
+            isProcessed: boolean;
+            paymentId: string | null;
         }[];
         payments: ({
             installments: {
@@ -144,6 +147,7 @@ export declare class ClientsController {
         guardianCIN: string | null;
         guardianRelationship: string | null;
         status: import("@prisma/client").$Enums.ClientStatus;
+        assignedEmployeeId: string | null;
     }) | null>;
     findAll(query: QueryClientDto): Promise<{
         data: ({
@@ -197,6 +201,7 @@ export declare class ClientsController {
             guardianCIN: string | null;
             guardianRelationship: string | null;
             status: import("@prisma/client").$Enums.ClientStatus;
+            assignedEmployeeId: string | null;
         })[];
         meta: {
             page: number;
@@ -227,6 +232,11 @@ export declare class ClientsController {
             age: number | null;
             clientId: string;
         }[];
+        assignedEmployee: {
+            id: string;
+            fullName: string;
+            commissionPercentage: string;
+        } | null;
         attachments: {
             id: string;
             createdAt: Date;
@@ -256,6 +266,7 @@ export declare class ClientsController {
         guardianCIN: string | null;
         guardianRelationship: string | null;
         status: import("@prisma/client").$Enums.ClientStatus;
+        assignedEmployeeId: string | null;
     }>;
     update(id: string, updateClientDto: UpdateClientDto): Promise<{
         phoneNumbers: {
@@ -308,11 +319,10 @@ export declare class ClientsController {
         guardianCIN: string | null;
         guardianRelationship: string | null;
         status: import("@prisma/client").$Enums.ClientStatus;
+        assignedEmployeeId: string | null;
     }>;
-    remove(id: string): Promise<{
-        message: string;
-    }>;
-    addFamilyMember(clientId: string, createFamilyMemberDto: CreateFamilyMemberDto): Promise<{
+    remove(id: string): Promise<void>;
+    addFamilyMember(id: string, createFamilyMemberDto: CreateFamilyMemberDto): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
@@ -322,7 +332,122 @@ export declare class ClientsController {
         age: number | null;
         clientId: string;
     }>;
-    removeFamilyMember(id: string): Promise<{
-        message: string;
+    assignEmployee(clientId: string, body: {
+        employeeId: string;
+    }): Promise<{
+        phoneNumbers: {
+            number: string;
+            id: string;
+            clientId: string;
+        }[];
+        employers: {
+            id: string;
+            name: string;
+            position: string | null;
+            clientId: string;
+        }[];
+        familyMembers: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            fullName: string;
+            passportNumber: string;
+            relationship: string | null;
+            age: number | null;
+            clientId: string;
+        }[];
+        assignedEmployee: {
+            id: string;
+            fullName: string;
+            commissionPercentage: string;
+        } | null;
+        attachments: {
+            id: string;
+            createdAt: Date;
+            type: import("@prisma/client").$Enums.AttachmentType;
+            clientId: string;
+            filename: string;
+            originalName: string;
+            mimetype: string;
+            size: number;
+            path: string;
+        }[];
+    } & {
+        id: string;
+        email: string;
+        createdAt: Date;
+        updatedAt: Date;
+        fullName: string;
+        passportNumber: string | null;
+        clientType: import("@prisma/client").$Enums.ClientType;
+        address: string;
+        jobTitle: string | null;
+        destination: string;
+        visaType: string;
+        notes: string | null;
+        isMinor: boolean;
+        guardianFullName: string | null;
+        guardianCIN: string | null;
+        guardianRelationship: string | null;
+        status: import("@prisma/client").$Enums.ClientStatus;
+        assignedEmployeeId: string | null;
+    }>;
+    unassignEmployee(clientId: string): Promise<{
+        phoneNumbers: {
+            number: string;
+            id: string;
+            clientId: string;
+        }[];
+        employers: {
+            id: string;
+            name: string;
+            position: string | null;
+            clientId: string;
+        }[];
+        familyMembers: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            fullName: string;
+            passportNumber: string;
+            relationship: string | null;
+            age: number | null;
+            clientId: string;
+        }[];
+        assignedEmployee: {
+            id: string;
+            fullName: string;
+            commissionPercentage: string;
+        } | null;
+        attachments: {
+            id: string;
+            createdAt: Date;
+            type: import("@prisma/client").$Enums.AttachmentType;
+            clientId: string;
+            filename: string;
+            originalName: string;
+            mimetype: string;
+            size: number;
+            path: string;
+        }[];
+    } & {
+        id: string;
+        email: string;
+        createdAt: Date;
+        updatedAt: Date;
+        fullName: string;
+        passportNumber: string | null;
+        clientType: import("@prisma/client").$Enums.ClientType;
+        address: string;
+        jobTitle: string | null;
+        destination: string;
+        visaType: string;
+        notes: string | null;
+        isMinor: boolean;
+        guardianFullName: string | null;
+        guardianCIN: string | null;
+        guardianRelationship: string | null;
+        status: import("@prisma/client").$Enums.ClientStatus;
+        assignedEmployeeId: string | null;
     }>;
 }

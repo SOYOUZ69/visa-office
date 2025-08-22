@@ -9,36 +9,30 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreateEmployeeDto = void 0;
+exports.RejectTransactionDto = void 0;
+const swagger_1 = require("@nestjs/swagger");
 const class_validator_1 = require("class-validator");
-const client_1 = require("@prisma/client");
-class CreateEmployeeDto {
-    fullName;
-    salaryType;
-    salaryAmount;
-    commissionPercentage;
-    soldeCoungiee;
+class RejectTransactionDto {
+    approvedBy;
+    rejectionReason;
 }
-exports.CreateEmployeeDto = CreateEmployeeDto;
+exports.RejectTransactionDto = RejectTransactionDto;
 __decorate([
+    (0, swagger_1.ApiProperty)({
+        description: 'ID of the user rejecting the transaction',
+        example: 'user123',
+    }),
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
-], CreateEmployeeDto.prototype, "fullName", void 0);
+], RejectTransactionDto.prototype, "approvedBy", void 0);
 __decorate([
-    (0, class_validator_1.IsEnum)(client_1.SalaryType),
-    __metadata("design:type", String)
-], CreateEmployeeDto.prototype, "salaryType", void 0);
-__decorate([
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
-], CreateEmployeeDto.prototype, "salaryAmount", void 0);
-__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: 'Reason for rejecting the transaction',
+        example: 'Insufficient documentation provided',
+    }),
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
-], CreateEmployeeDto.prototype, "commissionPercentage", void 0);
-__decorate([
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
-], CreateEmployeeDto.prototype, "soldeCoungiee", void 0);
-//# sourceMappingURL=create-employee.dto.js.map
+], RejectTransactionDto.prototype, "rejectionReason", void 0);
+//# sourceMappingURL=reject-transaction.dto.js.map

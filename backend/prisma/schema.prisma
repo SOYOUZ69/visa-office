@@ -105,6 +105,13 @@ enum SalaryType {
   CLIENTCOMMISSION
   PERIODCOMMISSION
 }
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+}
 // Models
 model User {
   id        String   @id @default(cuid())
@@ -133,6 +140,8 @@ model Client {
   guardianFullName     String?
   guardianCIN          String?
   guardianRelationship String?
+  assignedEmployeeId   String?      // Employee assigned to this client
+  assignedEmployee     Employee?    @relation(fields: [assignedEmployeeId], references: [id])
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
 
@@ -202,6 +211,9 @@ model ServiceItem {
   serviceType ServiceType
   quantity    Int         @default(1)
   unitPrice   Decimal     @db.Decimal(10,2)
+  isProcessed Boolean     @default(false) // Track if service has been processed in a payment
+  paymentId   String?     // Reference to the payment that processed this service
+  payment     Payment?    @relation(fields: [paymentId], references: [id])
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -225,6 +237,7 @@ model Payment {
   // Relations
   installments PaymentInstallment[]
   transactions Transaction[]
+  serviceItems  ServiceItem[]
   @@map("payments")
 }
 
@@ -301,10 +314,31 @@ model FinancialReport {
 }
 model Employee {
   id                   String   @id @default(cuid())
+  fullName             String
   salaryType           SalaryType
   salaryAmount         Decimal
   commissionPercentage String
   soldeCoungiee        Decimal
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+
+  // Relations
+  assignedClients Client[] // Clients assigned to this employee
+  attendance      Attendance[]
+
+  @@map("employees")
+}
+
+model Attendance {
+  id          String           @id @default(cuid())
+  employeeId  String
+  employee    Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date        DateTime
+  status      AttendanceStatus
+  reason      String?          // Reason for absence if applicable
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([employeeId, date]) // One attendance record per employee per day
+  @@map("attendance")
 }

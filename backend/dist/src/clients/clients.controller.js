@@ -48,11 +48,14 @@ let ClientsController = class ClientsController {
     remove(id) {
         return this.clientsService.remove(id);
     }
-    addFamilyMember(clientId, createFamilyMemberDto) {
-        return this.clientsService.addFamilyMember(clientId, createFamilyMemberDto);
+    addFamilyMember(id, createFamilyMemberDto) {
+        return this.clientsService.addFamilyMember(id, createFamilyMemberDto);
     }
-    removeFamilyMember(id) {
-        return this.clientsService.removeFamilyMember(id);
+    assignEmployee(clientId, body) {
+        return this.clientsService.assignEmployee(clientId, body.employeeId);
+    }
+    unassignEmployee(clientId) {
+        return this.clientsService.unassignEmployee(clientId);
     }
 };
 exports.ClientsController = ClientsController;
@@ -74,8 +77,13 @@ __decorate([
     (0, common_1.Post)('phone-call'),
     (0, roles_guard_2.Roles)(client_1.UserRole.ADMIN),
     (0, swagger_1.ApiBearerAuth)(),
-    (0, swagger_1.ApiOperation)({ summary: 'Create a Phone Call client with services and payment in one transaction' }),
-    (0, swagger_1.ApiResponse)({ status: 201, description: 'Phone Call client created successfully with services and payment' }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Create a Phone Call client with services and payment in one transaction',
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 201,
+        description: 'Phone Call client created successfully with services and payment',
+    }),
     (0, swagger_1.ApiResponse)({ status: 400, description: 'Bad request - validation error' }),
     (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
     (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - admin role required' }),
@@ -93,8 +101,16 @@ __decorate([
     (0, swagger_1.ApiQuery)({ name: 'page', required: false, type: Number }),
     (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number }),
     (0, swagger_1.ApiQuery)({ name: 'search', required: false, type: String }),
-    (0, swagger_1.ApiQuery)({ name: 'status', required: false, enum: ['NEW', 'IN_REVIEW', 'PENDING_DOCS', 'APPROVED', 'REJECTED'] }),
-    (0, swagger_1.ApiQuery)({ name: 'clientType', required: false, enum: ['INDIVIDUAL', 'FAMILY', 'GROUP', 'PHONE_CALL'] }),
+    (0, swagger_1.ApiQuery)({
+        name: 'status',
+        required: false,
+        enum: ['NEW', 'IN_REVIEW', 'PENDING_DOCS', 'APPROVED', 'REJECTED'],
+    }),
+    (0, swagger_1.ApiQuery)({
+        name: 'clientType',
+        required: false,
+        enum: ['INDIVIDUAL', 'FAMILY', 'GROUP', 'PHONE_CALL'],
+    }),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [query_client_dto_1.QueryClientDto]),
@@ -159,19 +175,36 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], ClientsController.prototype, "addFamilyMember", null);
 __decorate([
-    (0, common_1.Delete)('family-members/:id'),
+    (0, common_1.Post)(':id/assign-employee'),
     (0, roles_guard_2.Roles)(client_1.UserRole.ADMIN),
     (0, swagger_1.ApiBearerAuth)(),
-    (0, swagger_1.ApiOperation)({ summary: 'Remove a family member' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Family member removed successfully' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Assign an employee to a client' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Employee assigned successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Bad request - validation error' }),
     (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
     (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - admin role required' }),
-    (0, swagger_1.ApiResponse)({ status: 404, description: 'Family member not found' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Client or employee not found' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], ClientsController.prototype, "assignEmployee", null);
+__decorate([
+    (0, common_1.Post)(':id/unassign-employee'),
+    (0, roles_guard_2.Roles)(client_1.UserRole.ADMIN),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Unassign employee from a client' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Employee unassigned successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Bad request - validation error' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - admin role required' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Client not found' }),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
-], ClientsController.prototype, "removeFamilyMember", null);
+], ClientsController.prototype, "unassignEmployee", null);
 exports.ClientsController = ClientsController = __decorate([
     (0, swagger_1.ApiTags)('Clients'),
     (0, common_1.Controller)('api/v1/clients'),

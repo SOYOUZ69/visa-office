@@ -39,6 +39,25 @@ let EmployeeController = class EmployeeController {
     async remove(id) {
         await this.employeeService.remove(id);
     }
+    markAttendance(employeeId, body) {
+        return this.employeeService.markAttendance(employeeId, new Date(body.date), body.status, body.reason);
+    }
+    getAttendance(employeeId, body) {
+        const startDate = body?.startDate ? new Date(body.startDate) : undefined;
+        const endDate = body?.endDate ? new Date(body.endDate) : undefined;
+        return this.employeeService.getAttendance(employeeId, startDate, endDate);
+    }
+    calculateCommission(employeeId, body) {
+        const startDate = body?.startDate ? new Date(body.startDate) : undefined;
+        const endDate = body?.endDate ? new Date(body.endDate) : undefined;
+        return this.employeeService.calculateCommission(employeeId, startDate, endDate);
+    }
+    calculateMonthlySoldeCoungiee(employeeId, body) {
+        return this.employeeService.calculateMonthlySoldeCoungiee(employeeId, body.month, body.year);
+    }
+    getEmployeesWithStats() {
+        return this.employeeService.getEmployeesWithStats();
+    }
 };
 exports.EmployeeController = EmployeeController;
 __decorate([
@@ -128,9 +147,92 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], EmployeeController.prototype, "remove", null);
+__decorate([
+    (0, common_1.Post)(':id/attendance'),
+    (0, swagger_1.ApiOperation)({ summary: 'Mark employee attendance' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Employee ID' }),
+    (0, swagger_1.ApiResponse)({
+        status: common_1.HttpStatus.OK,
+        description: 'Attendance marked successfully',
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: common_1.HttpStatus.NOT_FOUND,
+        description: 'Employee not found',
+    }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], EmployeeController.prototype, "markAttendance", null);
+__decorate([
+    (0, common_1.Get)(':id/attendance'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get employee attendance' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Employee ID' }),
+    (0, swagger_1.ApiResponse)({
+        status: common_1.HttpStatus.OK,
+        description: 'Attendance records retrieved successfully',
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: common_1.HttpStatus.NOT_FOUND,
+        description: 'Employee not found',
+    }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], EmployeeController.prototype, "getAttendance", null);
+__decorate([
+    (0, common_1.Get)(':id/commission'),
+    (0, swagger_1.ApiOperation)({ summary: 'Calculate employee commission' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Employee ID' }),
+    (0, swagger_1.ApiResponse)({
+        status: common_1.HttpStatus.OK,
+        description: 'Commission calculated successfully',
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: common_1.HttpStatus.NOT_FOUND,
+        description: 'Employee not found',
+    }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], EmployeeController.prototype, "calculateCommission", null);
+__decorate([
+    (0, common_1.Post)(':id/calculate-solde'),
+    (0, swagger_1.ApiOperation)({ summary: 'Calculate monthly solde coungiee' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Employee ID' }),
+    (0, swagger_1.ApiResponse)({
+        status: common_1.HttpStatus.OK,
+        description: 'Solde coungiee calculated successfully',
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: common_1.HttpStatus.NOT_FOUND,
+        description: 'Employee not found',
+    }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], EmployeeController.prototype, "calculateMonthlySoldeCoungiee", null);
+__decorate([
+    (0, common_1.Get)('stats/overview'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get all employees with statistics' }),
+    (0, swagger_1.ApiResponse)({
+        status: common_1.HttpStatus.OK,
+        description: 'Employees with statistics retrieved successfully',
+    }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], EmployeeController.prototype, "getEmployeesWithStats", null);
 exports.EmployeeController = EmployeeController = __decorate([
     (0, swagger_1.ApiTags)('employees'),
-    (0, common_1.Controller)('employees'),
+    (0, common_1.Controller)('api/v1/employees'),
     __metadata("design:paramtypes", [employee_service_1.EmployeeService])
 ], EmployeeController);
 //# sourceMappingURL=employee.controller.js.map

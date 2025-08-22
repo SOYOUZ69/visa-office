@@ -4,6 +4,7 @@ exports.Employee = void 0;
 const client_1 = require("@prisma/client");
 class Employee {
     id;
+    fullName;
     salaryType;
     salaryAmount;
     commissionPercentage;

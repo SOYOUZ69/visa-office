@@ -11,6 +11,8 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { FinancialService } from './financial.service';
 import { CreateCaisseDto } from './dto/create-caisse.dto';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
+import { ApproveTransactionDto } from './dto/approve-transaction.dto';
+import { RejectTransactionDto } from './dto/reject-transaction.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -96,6 +98,18 @@ export class FinancialController {
     return this.financialService.getFinancialReports();
   }
 
+  @Get('statistics')
+  @ApiOperation({ summary: 'Get financial statistics' })
+  @ApiResponse({ status: 200, description: 'Financial statistics' })
+  getFinancialStatistics(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const start = startDate ? new Date(startDate) : undefined;
+    const end = endDate ? new Date(endDate) : undefined;
+    return this.financialService.getFinancialStatistics(start, end);
+  }
+
   // Utility endpoints
   @Get('tax-calculation/:amount')
   @ApiOperation({ summary: 'Calculate tax for an amount' })
@@ -104,5 +118,56 @@ export class FinancialController {
     const numAmount = parseFloat(amount);
     const tax = this.financialService.calculateTaxForClient(numAmount);
     return { amount: numAmount, tax, totalWithTax: numAmount + tax };
+  }
+
+  // Transaction Approval endpoints
+  @Get('transactions/pending')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get all pending transactions for approval' })
+  @ApiResponse({ status: 200, description: 'List of pending transactions' })
+  getPendingTransactions() {
+    return this.financialService.getPendingTransactions();
+  }
+
+  @Post('transactions/:id/approve')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Approve a pending transaction' })
+  @ApiResponse({
+    status: 200,
+    description: 'Transaction approved successfully',
+  })
+  approveTransaction(
+    @Param('id') transactionId: string,
+    @Body() approveTransactionDto: ApproveTransactionDto,
+  ) {
+    return this.financialService.approveTransaction(
+      transactionId,
+      approveTransactionDto.approvedBy,
+    );
+  }
+
+  @Post('transactions/:id/reject')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Reject a pending transaction' })
+  @ApiResponse({
+    status: 200,
+    description: 'Transaction rejected successfully',
+  })
+  rejectTransaction(
+    @Param('id') transactionId: string,
+    @Body() rejectTransactionDto: RejectTransactionDto,
+  ) {
+    return this.financialService.rejectTransaction(
+      transactionId,
+      rejectTransactionDto.approvedBy,
+      rejectTransactionDto.rejectionReason,
+    );
+  }
+
+  @Get('transactions/:id')
+  @ApiOperation({ summary: 'Get transaction by ID' })
+  @ApiResponse({ status: 200, description: 'Transaction details' })
+  getTransactionById(@Param('id') transactionId: string) {
+    return this.financialService.getTransactionById(transactionId);
   }
 }

@@ -1,7 +1,11 @@
-import { IsEnum, IsNumber, IsString } from 'class-validator';
+import { IsEnum, IsNumber, IsString, IsNotEmpty } from 'class-validator';
 import { SalaryType } from '@prisma/client';
 
 export class CreateEmployeeDto {
+  @IsString()
+  @IsNotEmpty()
+  fullName: string;
+
   @IsEnum(SalaryType)
   salaryType: SalaryType;
 

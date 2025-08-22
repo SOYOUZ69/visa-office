@@ -19,11 +19,13 @@ let ClientsService = class ClientsService {
         this.prisma = prisma;
     }
     async create(createClientDto) {
-        if (createClientDto.clientType !== client_1.ClientType.PHONE_CALL && !createClientDto.passportNumber) {
+        if (createClientDto.clientType !== client_1.ClientType.PHONE_CALL &&
+            !createClientDto.passportNumber) {
             throw new common_1.BadRequestException('Passport number is required for non-phone call clients');
         }
         const { phoneNumbers, employers, familyMembers, ...clientData } = createClientDto;
-        if ((createClientDto.clientType === client_1.ClientType.FAMILY || createClientDto.clientType === client_1.ClientType.GROUP)) {
+        if (createClientDto.clientType === client_1.ClientType.FAMILY ||
+            createClientDto.clientType === client_1.ClientType.GROUP) {
             if (!familyMembers || familyMembers.length === 0) {
                 throw new common_1.BadRequestException('Family members are required for FAMILY and GROUP client types');
             }
@@ -99,6 +101,13 @@ let ClientsService = class ClientsService {
                 employers: true,
                 attachments: true,
                 familyMembers: true,
+                assignedEmployee: {
+                    select: {
+                        id: true,
+                        fullName: true,
+                        commissionPercentage: true,
+                    },
+                },
             },
         });
         if (!client) {
@@ -107,11 +116,13 @@ let ClientsService = class ClientsService {
         return client;
     }
     async update(id, updateClientDto) {
-        if (updateClientDto.clientType !== client_1.ClientType.PHONE_CALL && !updateClientDto.passportNumber) {
+        if (updateClientDto.clientType !== client_1.ClientType.PHONE_CALL &&
+            !updateClientDto.passportNumber) {
             throw new common_1.BadRequestException('Passport number is required for non-phone call clients');
         }
         const { phoneNumbers, employers, familyMembers, ...clientData } = updateClientDto;
-        if (updateClientDto.clientType === client_1.ClientType.FAMILY || updateClientDto.clientType === client_1.ClientType.GROUP) {
+        if (updateClientDto.clientType === client_1.ClientType.FAMILY ||
+            updateClientDto.clientType === client_1.ClientType.GROUP) {
             if (familyMembers !== undefined && familyMembers.length === 0) {
                 throw new common_1.BadRequestException('Family members are required for FAMILY and GROUP client types');
             }
@@ -160,11 +171,75 @@ let ClientsService = class ClientsService {
         });
     }
     async remove(id) {
-        const client = await this.findOne(id);
+        const client = await this.prisma.client.findUnique({
+            where: { id },
+        });
+        if (!client) {
+            throw new common_1.NotFoundException(`Client with ID ${id} not found`);
+        }
         await this.prisma.client.delete({
             where: { id },
         });
-        return { message: 'Client deleted successfully' };
+    }
+    async assignEmployee(clientId, employeeId) {
+        const client = await this.prisma.client.findUnique({
+            where: { id: clientId },
+        });
+        if (!client) {
+            throw new common_1.NotFoundException(`Client with ID ${clientId} not found`);
+        }
+        const employee = await this.prisma.employee.findUnique({
+            where: { id: employeeId },
+        });
+        if (!employee) {
+            throw new common_1.NotFoundException(`Employee with ID ${employeeId} not found`);
+        }
+        return this.prisma.client.update({
+            where: { id: clientId },
+            data: {
+                assignedEmployeeId: employeeId,
+            },
+            include: {
+                phoneNumbers: true,
+                employers: true,
+                attachments: true,
+                familyMembers: true,
+                assignedEmployee: {
+                    select: {
+                        id: true,
+                        fullName: true,
+                        commissionPercentage: true,
+                    },
+                },
+            },
+        });
+    }
+    async unassignEmployee(clientId) {
+        const client = await this.prisma.client.findUnique({
+            where: { id: clientId },
+        });
+        if (!client) {
+            throw new common_1.NotFoundException(`Client with ID ${clientId} not found`);
+        }
+        return this.prisma.client.update({
+            where: { id: clientId },
+            data: {
+                assignedEmployeeId: null,
+            },
+            include: {
+                phoneNumbers: true,
+                employers: true,
+                attachments: true,
+                familyMembers: true,
+                assignedEmployee: {
+                    select: {
+                        id: true,
+                        fullName: true,
+                        commissionPercentage: true,
+                    },
+                },
+            },
+        });
     }
     async addFamilyMember(clientId, createFamilyMemberDto) {
         await this.findOne(clientId);
@@ -197,11 +272,13 @@ let ClientsService = class ClientsService {
             throw new common_1.BadRequestException('Payment installments must sum to 100%');
         }
         const today = new Date().toISOString().split('T')[0];
-        const hasDueToday = paymentConfig.installments.some(inst => {
+        const hasDueToday = paymentConfig.installments.some((inst) => {
             const dueDate = new Date(inst.dueDate).toISOString().split('T')[0];
             return dueDate === today;
         });
-        if (hasDueToday && paymentConfig.paymentOption === client_1.PaymentOption.BANK_TRANSFER && !paymentConfig.transferCode) {
+        if (hasDueToday &&
+            paymentConfig.paymentOption === client_1.PaymentOption.BANK_TRANSFER &&
+            !paymentConfig.transferCode) {
             throw new common_1.BadRequestException('Transfer code is required for bank transfers due today');
         }
         return this.prisma.$transaction(async (tx) => {
@@ -221,7 +298,7 @@ let ClientsService = class ClientsService {
                 },
             });
             const createdServices = await tx.serviceItem.createMany({
-                data: services.map(service => ({
+                data: services.map((service) => ({
                     clientId: client.id,
                     serviceType: service.serviceType,
                     quantity: service.quantity,
@@ -236,7 +313,7 @@ let ClientsService = class ClientsService {
                     paymentModality: paymentConfig.paymentModality,
                     transferCode: paymentConfig.transferCode,
                     installments: {
-                        create: paymentConfig.installments.map(inst => ({
+                        create: paymentConfig.installments.map((inst) => ({
                             description: inst.description,
                             percentage: inst.percentage,
                             amount: inst.amount,

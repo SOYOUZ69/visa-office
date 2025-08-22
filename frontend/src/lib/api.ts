@@ -274,6 +274,41 @@ export const financialAPI = {
     return response.data;
   },
 
+  // Transaction approval
+  getPendingTransactions: async () => {
+    const response = await api.get("/api/v1/financial/transactions/pending");
+    return response.data;
+  },
+  approveTransaction: async (transactionId: string, approvedBy: string) => {
+    const response = await api.post(
+      `/api/v1/financial/transactions/${transactionId}/approve`,
+      {
+        approvedBy,
+      }
+    );
+    return response.data;
+  },
+  rejectTransaction: async (
+    transactionId: string,
+    approvedBy: string,
+    rejectionReason: string
+  ) => {
+    const response = await api.post(
+      `/api/v1/financial/transactions/${transactionId}/reject`,
+      {
+        approvedBy,
+        rejectionReason,
+      }
+    );
+    return response.data;
+  },
+  getTransactionById: async (transactionId: string) => {
+    const response = await api.get(
+      `/api/v1/financial/transactions/${transactionId}`
+    );
+    return response.data;
+  },
+
   // Financial reports
   getFinancialReports: async () => {
     const response = await api.get("/api/v1/financial/reports");
@@ -287,6 +322,26 @@ export const financialAPI = {
         params: { startDate, endDate },
       }
     );
+    return response.data;
+  },
+};
+
+// Employees API
+export const employeesAPI = {
+  getAll: async () => {
+    const response = await api.get("/api/v1/employees");
+    return response.data;
+  },
+  create: async (data: any) => {
+    const response = await api.post("/api/v1/employees", data);
+    return response.data;
+  },
+  update: async (id: string, data: any) => {
+    const response = await api.put(`/api/v1/employees/${id}`, data);
+    return response.data;
+  },
+  delete: async (id: string) => {
+    const response = await api.delete(`/api/v1/employees/${id}`);
     return response.data;
   },
 };

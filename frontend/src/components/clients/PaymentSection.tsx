@@ -176,11 +176,14 @@ export function PaymentSection({
   const watchedInstallments = form.watch("installments");
 
   // Determine if we should show configuration form or payment history
+  const [showNewPaymentForm, setShowNewPaymentForm] = useState(false);
   const shouldShowConfigForm =
-    isNewClient || payments.length === 0 || isEditing;
+    isNewClient || payments.length === 0 || isEditing || showNewPaymentForm;
   const currentPayment = editingPaymentId
     ? payments.find((p) => p.id === editingPaymentId)
     : null;
+
+  // Add a button to show the form for adding new payments
 
   useEffect(() => {
     if (clientId && !isNewClient) {
@@ -202,6 +205,11 @@ export function PaymentSection({
   useEffect(() => {
     // Don't auto-update amounts when editing an existing payment initially
     if (isEditing && editingPaymentId) {
+      return;
+    }
+
+    // Don't auto-update amounts if we're not showing the config form
+    if (!shouldShowConfigForm) {
       return;
     }
 
@@ -230,12 +238,17 @@ export function PaymentSection({
     if (hasChanged) {
       form.setValue("installments", updatedInstallments);
     }
-  }, [servicesTotal, form, isEditing, editingPaymentId]); // Remove watchedInstallments from dependencies to avoid infinite loops
+  }, [servicesTotal, form, isEditing, editingPaymentId, shouldShowConfigForm]); // Remove watchedInstallments from dependencies to avoid infinite loops
 
   // Handle payment modality changes (only when not editing existing payment)
   useEffect(() => {
     // Don't auto-replace fields when editing an existing payment
     if (isEditing && editingPaymentId) {
+      return;
+    }
+
+    // Don't auto-replace fields if we're not showing the config form
+    if (!shouldShowConfigForm) {
       return;
     }
 
@@ -301,6 +314,7 @@ export function PaymentSection({
     fields.length,
     isEditing,
     editingPaymentId,
+    shouldShowConfigForm,
   ]);
 
   const loadData = async () => {
@@ -322,6 +336,38 @@ export function PaymentSection({
     } finally {
       setLoading(false);
     }
+  };
+
+  // Function to refresh services data
+  const refreshServices = async () => {
+    try {
+      const servicesData = await servicesAPI.getClientServices(clientId);
+      setServices(servicesData);
+    } catch (error) {
+      console.error("Failed to refresh services:", error);
+    }
+  };
+
+  const resetPaymentForm = () => {
+    form.reset({
+      paymentOption: "CASH",
+      paymentModality: "FULL_PAYMENT",
+      transferCode: "",
+      installments: [
+        {
+          description: "Full Payment",
+          percentage: 100,
+          amount: servicesTotal,
+          dueDate: "",
+          status: "PENDING",
+        },
+      ],
+    });
+  };
+
+  const handleAddNewPayment = () => {
+    setShowNewPaymentForm(true);
+    resetPaymentForm();
   };
 
   const loadMetaData = async () => {
@@ -562,20 +608,8 @@ export function PaymentSection({
 
       // Reset form if not editing
       if (!isEditing) {
-        form.reset({
-          paymentOption: "CASH",
-          paymentModality: "FULL_PAYMENT",
-          transferCode: "",
-          installments: [
-            {
-              description: "Full Payment",
-              percentage: 100,
-              amount: servicesTotal,
-              dueDate: "",
-              status: "PENDING",
-            },
-          ],
-        });
+        resetPaymentForm();
+        setShowNewPaymentForm(false);
       }
     } catch (error) {
       console.error("Failed to save payment:", error);
@@ -670,23 +704,9 @@ export function PaymentSection({
   const cancelEditing = () => {
     setIsEditing(false);
     setEditingPaymentId(null);
+    setShowNewPaymentForm(false);
     setNumberOfInstallments(2); // Reset to default
-
-    // Reset form to default values
-    form.reset({
-      paymentOption: "CASH",
-      paymentModality: "FULL_PAYMENT",
-      transferCode: "",
-      installments: [
-        {
-          description: "Full Payment",
-          percentage: 100,
-          amount: servicesTotal,
-          dueDate: "",
-          status: "PENDING",
-        },
-      ],
-    });
+    resetPaymentForm();
   };
 
   if (loading && !isNewClient) {
@@ -763,9 +783,23 @@ export function PaymentSection({
         {/* Services Total */}
         <div className="bg-blue-50 p-4 rounded-lg">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-blue-900">
-              Total of Services:
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-blue-900">
+                Total of Services:
+              </span>
+              {isAdmin && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={refreshServices}
+                  className="text-blue-600 hover:text-blue-800"
+                  title="Refresh services total"
+                >
+                  <Calculator className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
             <span className="text-lg font-bold text-blue-900">
               {formatCurrency(servicesTotal)}
             </span>
@@ -793,6 +827,30 @@ export function PaymentSection({
                     className="text-blue-600 border-blue-300 hover:bg-blue-50"
                   >
                     Cancel Edit
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* New Payment Header */}
+            {showNewPaymentForm && !isEditing && (
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-green-900">
+                      Add New Payment
+                    </h3>
+                    <p className="text-sm text-green-700">
+                      Configure payment for new services
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={cancelEditing}
+                    className="text-green-600 border-green-300 hover:bg-green-50"
+                  >
+                    Cancel
                   </Button>
                 </div>
               </div>
@@ -1173,7 +1231,20 @@ export function PaymentSection({
         {/* Payment History - Only show when not editing and payments exist */}
         {!shouldShowConfigForm && payments.length > 0 && (
           <div className="space-y-3">
-            <h3 className="text-lg font-semibold">Payment History</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Payment History</h3>
+              {isAdmin && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleAddNewPayment}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add New Payment
+                </Button>
+              )}
+            </div>
             <div className="space-y-4">
               {payments.map((payment) => (
                 <Card

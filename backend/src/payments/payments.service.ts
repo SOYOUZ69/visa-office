@@ -53,6 +53,29 @@ export class PaymentsService {
       throw new NotFoundException(`Client with ID ${clientId} not found`);
     }
 
+    // Get unprocessed services for this client
+    const unprocessedServices = await this.prisma.serviceItem.findMany({
+      where: {
+        clientId,
+        isProcessed: false,
+      },
+    });
+
+    if (unprocessedServices.length === 0) {
+      throw new BadRequestException(
+        'No unprocessed services found for this client',
+      );
+    }
+
+    // Calculate total amount from unprocessed services
+    const calculatedTotal = unprocessedServices.reduce(
+      (sum, service) => sum + Number(service.unitPrice) * service.quantity,
+      0,
+    );
+
+    // Use the calculated total if no total amount is provided
+    const totalAmount = createPaymentDto.totalAmount || calculatedTotal;
+
     // Validate that percentages sum to 100%
     const totalPercentage = createPaymentDto.installments.reduce(
       (sum, installment) => sum + installment.percentage,
@@ -67,8 +90,7 @@ export class PaymentsService {
 
     // Validate that amounts match percentages
     for (const installment of createPaymentDto.installments) {
-      const expectedAmount =
-        (createPaymentDto.totalAmount * installment.percentage) / 100;
+      const expectedAmount = (totalAmount * installment.percentage) / 100;
       if (Math.abs(installment.amount - expectedAmount) > 0.01) {
         throw new BadRequestException(
           `Installment amount ${installment.amount} does not match expected amount ${expectedAmount.toFixed(2)} for ${installment.percentage}%`,
@@ -86,7 +108,7 @@ export class PaymentsService {
       const payment = await prisma.payment.create({
         data: {
           clientId,
-          totalAmount: createPaymentDto.totalAmount,
+          totalAmount,
           paymentOption: createPaymentDto.paymentOption,
           paymentModality: createPaymentDto.paymentModality,
           transferCode: createPaymentDto.transferCode,
@@ -107,6 +129,18 @@ export class PaymentsService {
           installments: {
             orderBy: { dueDate: 'asc' },
           },
+        },
+      });
+
+      // Mark all unprocessed services as processed and link them to this payment
+      await prisma.serviceItem.updateMany({
+        where: {
+          clientId,
+          isProcessed: false,
+        },
+        data: {
+          isProcessed: true,
+          paymentId: payment.id,
         },
       });
 
@@ -133,26 +167,14 @@ export class PaymentsService {
                 amount: payment.totalAmount,
                 description: `Paiement pour ${client.fullName} - ${payment.paymentModality}`,
                 reference: `Payment ID: ${payment.id}`,
-                status: TransactionStatus.COMPLETED,
+                status: TransactionStatus.PENDING,
                 paymentId: payment.id,
                 transactionDate: new Date(),
               },
             });
 
-            // Update caisse balance within the same transaction
-            const caisse = await prisma.caisse.findUnique({
-              where: { id: defaultCaisse.id },
-            });
-
-            if (caisse) {
-              const newBalance = caisse.balance.plus(
-                Number(payment.totalAmount),
-              );
-              await prisma.caisse.update({
-                where: { id: defaultCaisse.id },
-                data: { balance: newBalance },
-              });
-            }
+            // Don't update caisse balance until transaction is approved
+            // Balance will be updated when transaction is approved
           }
         } catch (error) {
           // If transaction creation fails, we should still return the payment
@@ -571,7 +593,7 @@ export class PaymentsService {
         amount: installment.amount,
         description: `Paiement d'échéance: ${installment.description} - ${installment.payment.client.fullName}`,
         reference: `Installment ID: ${installment.id}`,
-        status: TransactionStatus.COMPLETED,
+        status: TransactionStatus.PENDING,
         paymentId: installment.paymentId,
         transactionDate: new Date(),
       };
@@ -581,18 +603,8 @@ export class PaymentsService {
           data: transactionData,
         });
 
-        // Update caisse balance within the same transaction
-        const caisse = await prisma.caisse.findUnique({
-          where: { id: targetCaisseId },
-        });
-
-        if (caisse) {
-          const newBalance = caisse.balance.plus(Number(installment.amount));
-          await prisma.caisse.update({
-            where: { id: targetCaisseId },
-            data: { balance: newBalance },
-          });
-        }
+        // Don't update caisse balance until transaction is approved
+        // Balance will be updated when transaction is approved
       } catch (error) {
         // If transaction creation fails, we should still return the updated installment
         // but log the error for debugging
@@ -630,6 +642,36 @@ export class PaymentsService {
         totalPayments > 0
           ? (paidInstallments / (paidInstallments + pendingInstallments)) * 100
           : 0,
+    };
+  }
+
+  // Method to get unprocessed services for a client
+  async getUnprocessedServices(clientId: string) {
+    const client = await this.prisma.client.findUnique({
+      where: { id: clientId },
+    });
+
+    if (!client) {
+      throw new NotFoundException(`Client with ID ${clientId} not found`);
+    }
+
+    const unprocessedServices = await this.prisma.serviceItem.findMany({
+      where: {
+        clientId,
+        isProcessed: false,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const totalAmount = unprocessedServices.reduce(
+      (sum, service) => sum + Number(service.unitPrice) * service.quantity,
+      0,
+    );
+
+    return {
+      services: unprocessedServices,
+      totalAmount,
+      serviceCount: unprocessedServices.length,
     };
   }
 }

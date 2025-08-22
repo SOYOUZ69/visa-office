@@ -1,6 +1,8 @@
 import { CaisseManagement } from "@/components/financial/CaisseManagement";
 import { TransactionHistory } from "@/components/financial/TransactionHistory";
 import { FinancialDashboard } from "@/components/financial/FinancialDashboard";
+import { TransactionApproval } from "@/components/financial/TransactionApproval";
+import { EmployeeManagement } from "@/components/financial/EmployeeManagement";
 import { Layout } from "@/components/Layout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,6 +21,8 @@ export default function FinancialPage() {
               <TabsTrigger value="transactions">
                 Historique des Transactions
               </TabsTrigger>
+              <TabsTrigger value="approvals">Approbations</TabsTrigger>
+              <TabsTrigger value="employees">Employés</TabsTrigger>
             </TabsList>
 
             <TabsContent value="dashboard">
@@ -31,6 +35,14 @@ export default function FinancialPage() {
 
             <TabsContent value="transactions">
               <TransactionHistory />
+            </TabsContent>
+
+            <TabsContent value="approvals">
+              <TransactionApproval />
+            </TabsContent>
+
+            <TabsContent value="employees">
+              <EmployeeManagement />
             </TabsContent>
           </Tabs>
         </div>

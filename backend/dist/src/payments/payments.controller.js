@@ -46,6 +46,9 @@ let PaymentsController = class PaymentsController {
     async getPaymentStatistics() {
         return this.paymentsService.getPaymentStatistics();
     }
+    async getUnprocessedServices(clientId) {
+        return this.paymentsService.getUnprocessedServices(clientId);
+    }
 };
 exports.PaymentsController = PaymentsController;
 __decorate([
@@ -165,6 +168,29 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], PaymentsController.prototype, "getPaymentStatistics", null);
+__decorate([
+    (0, common_1.Get)('clients/:id/unprocessed-services'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get unprocessed services for a client' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Client ID' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Unprocessed services for the client',
+        schema: {
+            type: 'object',
+            properties: {
+                services: { type: 'array' },
+                totalAmount: { type: 'number' },
+                serviceCount: { type: 'number' },
+            },
+        },
+    }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Client not found' }),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN, client_1.UserRole.USER),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], PaymentsController.prototype, "getUnprocessedServices", null);
 exports.PaymentsController = PaymentsController = __decorate([
     (0, swagger_1.ApiTags)('Payments'),
     (0, swagger_1.ApiBearerAuth)(),

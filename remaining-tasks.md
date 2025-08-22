@@ -1,0 +1,9 @@
+- When Creating a new payment, payment calculation starts from 0 always, and adds all uncalculated services.
+-Add property to services to determine whether or not they have been processed in a payment or not.
+-Add the ability to tag an employee to a client to be able to calculate the commission of the employee later.
+-Fix the format of the "Revenus" and "Depenses" in Historique de transactions
+-Fix the calculations of "Revenus" and "Depenses" so it only calculates the "Approved" transactions and ignore the rejected ones, but all transactions still appear in the "historique".
+-Calculate the Solde Coungiee of each employee automatically so that every month they get +4 to their solde
+-Calculate the current amount of commission that they have, +%com for each client they are tagged in.
+-Add Attendance system to mark which days employees were present/absent so they lose -1 for their solde coungiee for each day they are absent with a valid reason.
+-Employees that get commission on a period also get commssion when a client signes with the office when these employees are present

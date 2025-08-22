@@ -1,6 +1,7 @@
 import { SalaryType, Prisma } from '@prisma/client';
 export declare class Employee {
     id: string;
+    fullName: string;
     salaryType: SalaryType;
     salaryAmount: Prisma.Decimal | number | string;
     commissionPercentage: string;

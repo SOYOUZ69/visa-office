@@ -1,5 +1,21 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
@@ -32,12 +48,21 @@ export class ClientsController {
   @Post('phone-call')
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create a Phone Call client with services and payment in one transaction' })
-  @ApiResponse({ status: 201, description: 'Phone Call client created successfully with services and payment' })
+  @ApiOperation({
+    summary:
+      'Create a Phone Call client with services and payment in one transaction',
+  })
+  @ApiResponse({
+    status: 201,
+    description:
+      'Phone Call client created successfully with services and payment',
+  })
   @ApiResponse({ status: 400, description: 'Bad request - validation error' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - admin role required' })
-  createPhoneCallClient(@Body() createPhoneCallClientDto: CreatePhoneCallClientDto) {
+  createPhoneCallClient(
+    @Body() createPhoneCallClientDto: CreatePhoneCallClientDto,
+  ) {
     return this.clientsService.createPhoneCallClient(createPhoneCallClientDto);
   }
 
@@ -49,8 +74,16 @@ export class ClientsController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'search', required: false, type: String })
-  @ApiQuery({ name: 'status', required: false, enum: ['NEW', 'IN_REVIEW', 'PENDING_DOCS', 'APPROVED', 'REJECTED'] })
-  @ApiQuery({ name: 'clientType', required: false, enum: ['INDIVIDUAL', 'FAMILY', 'GROUP', 'PHONE_CALL'] })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['NEW', 'IN_REVIEW', 'PENDING_DOCS', 'APPROVED', 'REJECTED'],
+  })
+  @ApiQuery({
+    name: 'clientType',
+    required: false,
+    enum: ['INDIVIDUAL', 'FAMILY', 'GROUP', 'PHONE_CALL'],
+  })
   findAll(@Query() query: QueryClientDto) {
     return this.clientsService.findAll(query);
   }
@@ -100,21 +133,38 @@ export class ClientsController {
   @ApiResponse({ status: 403, description: 'Forbidden - admin role required' })
   @ApiResponse({ status: 404, description: 'Client not found' })
   addFamilyMember(
-    @Param('id') clientId: string,
+    @Param('id') id: string,
     @Body() createFamilyMemberDto: CreateFamilyMemberDto,
   ) {
-    return this.clientsService.addFamilyMember(clientId, createFamilyMemberDto);
+    return this.clientsService.addFamilyMember(id, createFamilyMemberDto);
   }
 
-  @Delete('family-members/:id')
+  @Post(':id/assign-employee')
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Remove a family member' })
-  @ApiResponse({ status: 200, description: 'Family member removed successfully' })
+  @ApiOperation({ summary: 'Assign an employee to a client' })
+  @ApiResponse({ status: 200, description: 'Employee assigned successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request - validation error' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - admin role required' })
-  @ApiResponse({ status: 404, description: 'Family member not found' })
-  removeFamilyMember(@Param('id') id: string) {
-    return this.clientsService.removeFamilyMember(id);
+  @ApiResponse({ status: 404, description: 'Client or employee not found' })
+  assignEmployee(
+    @Param('id') clientId: string,
+    @Body() body: { employeeId: string },
+  ) {
+    return this.clientsService.assignEmployee(clientId, body.employeeId);
+  }
+
+  @Post(':id/unassign-employee')
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Unassign employee from a client' })
+  @ApiResponse({ status: 200, description: 'Employee unassigned successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request - validation error' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - admin role required' })
+  @ApiResponse({ status: 404, description: 'Client not found' })
+  unassignEmployee(@Param('id') clientId: string) {
+    return this.clientsService.unassignEmployee(clientId);
   }
 }

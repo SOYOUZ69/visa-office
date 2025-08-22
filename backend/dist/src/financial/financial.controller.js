@@ -18,6 +18,8 @@ const swagger_1 = require("@nestjs/swagger");
 const financial_service_1 = require("./financial.service");
 const create_caisse_dto_1 = require("./dto/create-caisse.dto");
 const create_transaction_dto_1 = require("./dto/create-transaction.dto");
+const approve_transaction_dto_1 = require("./dto/approve-transaction.dto");
+const reject_transaction_dto_1 = require("./dto/reject-transaction.dto");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const roles_guard_1 = require("../auth/guards/roles.guard");
 const roles_decorator_1 = require("../auth/decorators/roles.decorator");
@@ -59,10 +61,27 @@ let FinancialController = class FinancialController {
     getFinancialReports() {
         return this.financialService.getFinancialReports();
     }
+    getFinancialStatistics(startDate, endDate) {
+        const start = startDate ? new Date(startDate) : undefined;
+        const end = endDate ? new Date(endDate) : undefined;
+        return this.financialService.getFinancialStatistics(start, end);
+    }
     calculateTax(amount) {
         const numAmount = parseFloat(amount);
         const tax = this.financialService.calculateTaxForClient(numAmount);
         return { amount: numAmount, tax, totalWithTax: numAmount + tax };
+    }
+    getPendingTransactions() {
+        return this.financialService.getPendingTransactions();
+    }
+    approveTransaction(transactionId, approveTransactionDto) {
+        return this.financialService.approveTransaction(transactionId, approveTransactionDto.approvedBy);
+    }
+    rejectTransaction(transactionId, rejectTransactionDto) {
+        return this.financialService.rejectTransaction(transactionId, rejectTransactionDto.approvedBy, rejectTransactionDto.rejectionReason);
+    }
+    getTransactionById(transactionId) {
+        return this.financialService.getTransactionById(transactionId);
     }
 };
 exports.FinancialController = FinancialController;
@@ -136,6 +155,16 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], FinancialController.prototype, "getFinancialReports", null);
 __decorate([
+    (0, common_1.Get)('statistics'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get financial statistics' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Financial statistics' }),
+    __param(0, (0, common_1.Query)('startDate')),
+    __param(1, (0, common_1.Query)('endDate')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], FinancialController.prototype, "getFinancialStatistics", null);
+__decorate([
     (0, common_1.Get)('tax-calculation/:amount'),
     (0, swagger_1.ApiOperation)({ summary: 'Calculate tax for an amount' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Tax calculation' }),
@@ -144,6 +173,52 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], FinancialController.prototype, "calculateTax", null);
+__decorate([
+    (0, common_1.Get)('transactions/pending'),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Get all pending transactions for approval' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'List of pending transactions' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], FinancialController.prototype, "getPendingTransactions", null);
+__decorate([
+    (0, common_1.Post)('transactions/:id/approve'),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Approve a pending transaction' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Transaction approved successfully',
+    }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, approve_transaction_dto_1.ApproveTransactionDto]),
+    __metadata("design:returntype", void 0)
+], FinancialController.prototype, "approveTransaction", null);
+__decorate([
+    (0, common_1.Post)('transactions/:id/reject'),
+    (0, roles_decorator_1.Roles)(client_1.UserRole.ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Reject a pending transaction' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Transaction rejected successfully',
+    }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, reject_transaction_dto_1.RejectTransactionDto]),
+    __metadata("design:returntype", void 0)
+], FinancialController.prototype, "rejectTransaction", null);
+__decorate([
+    (0, common_1.Get)('transactions/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get transaction by ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Transaction details' }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], FinancialController.prototype, "getTransactionById", null);
 exports.FinancialController = FinancialController = __decorate([
     (0, swagger_1.ApiTags)('Financial'),
     (0, common_1.Controller)('/api/v1/financial'),

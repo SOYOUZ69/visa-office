@@ -150,4 +150,25 @@ export class PaymentsController {
   async getPaymentStatistics() {
     return this.paymentsService.getPaymentStatistics();
   }
+
+  @Get('clients/:id/unprocessed-services')
+  @ApiOperation({ summary: 'Get unprocessed services for a client' })
+  @ApiParam({ name: 'id', description: 'Client ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Unprocessed services for the client',
+    schema: {
+      type: 'object',
+      properties: {
+        services: { type: 'array' },
+        totalAmount: { type: 'number' },
+        serviceCount: { type: 'number' },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Client not found' })
+  @Roles(UserRole.ADMIN, UserRole.USER)
+  async getUnprocessedServices(@Param('id') clientId: string) {
+    return this.paymentsService.getUnprocessedServices(clientId);
+  }
 }

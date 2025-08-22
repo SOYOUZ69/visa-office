@@ -70,23 +70,19 @@ export class FinancialService {
   async createTransaction(createTransactionDto: CreateTransactionDto) {
     const { caisseId, amount, type, ...transactionData } = createTransactionDto;
 
-    // Start a transaction to ensure data consistency
-    return this.prisma.$transaction(async (prisma) => {
-      // Create the transaction
-      const transaction = await prisma.transaction.create({
-        data: {
-          ...transactionData,
-          caisseId,
-          amount,
-          type,
-        },
-      });
-
-      // Update caisse balance
-      await this.updateCaisseBalance(caisseId, amount, type);
-
-      return transaction;
+    // Create the transaction with PENDING status
+    const transaction = await this.prisma.transaction.create({
+      data: {
+        ...transactionData,
+        caisseId,
+        amount,
+        type,
+        status: TransactionStatus.PENDING, // Always start as pending
+      },
     });
+
+    // Don't update caisse balance until approved
+    return transaction;
   }
 
   async getTransactions(filters?: {
@@ -121,7 +117,143 @@ export class FinancialService {
     });
   }
 
-  // Financial Reports
+  async getFinancialReports() {
+    return this.prisma.financialReport.findMany({
+      orderBy: { reportDate: 'desc' },
+    });
+  }
+
+  // Tax calculation for clients
+  calculateTaxForClient(serviceTotal: number): number {
+    return serviceTotal * 0.19; // 19% tax
+  }
+
+  // Profit calculation for a client
+  calculateProfitForClient(serviceTotal: number, expenses: number): number {
+    const tax = this.calculateTaxForClient(serviceTotal);
+    return serviceTotal - tax - expenses;
+  }
+
+  // Transaction Approval Methods
+  async getPendingTransactions() {
+    return this.prisma.transaction.findMany({
+      where: { status: TransactionStatus.PENDING },
+      include: {
+        caisse: true,
+        payment: {
+          include: {
+            client: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async approveTransaction(transactionId: string, approvedBy: string) {
+    return this.prisma.$transaction(async (prisma) => {
+      const transaction = await prisma.transaction.findUnique({
+        where: { id: transactionId },
+        include: { caisse: true },
+      });
+
+      if (!transaction) {
+        throw new NotFoundException(
+          `Transaction with ID ${transactionId} not found`,
+        );
+      }
+
+      if (transaction.status !== TransactionStatus.PENDING) {
+        throw new BadRequestException('Transaction is not pending approval');
+      }
+
+      // Update transaction status to approved
+      const updatedTransaction = await prisma.transaction.update({
+        where: { id: transactionId },
+        data: {
+          status: TransactionStatus.APPROVED,
+          approvedBy,
+          approvedAt: new Date(),
+        },
+      });
+
+      // Update caisse balance only for approved transactions
+      if (transaction.type === TransactionType.INCOME) {
+        const newBalance = transaction.caisse.balance.plus(
+          Number(transaction.amount),
+        );
+        await prisma.caisse.update({
+          where: { id: transaction.caisseId },
+          data: { balance: newBalance },
+        });
+      } else if (transaction.type === TransactionType.EXPENSE) {
+        const newBalance = transaction.caisse.balance.minus(
+          Number(transaction.amount),
+        );
+        await prisma.caisse.update({
+          where: { id: transaction.caisseId },
+          data: { balance: newBalance },
+        });
+      }
+
+      return updatedTransaction;
+    });
+  }
+
+  async rejectTransaction(
+    transactionId: string,
+    approvedBy: string,
+    rejectionReason: string,
+  ) {
+    const transaction = await this.prisma.transaction.findUnique({
+      where: { id: transactionId },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException(
+        `Transaction with ID ${transactionId} not found`,
+      );
+    }
+
+    if (transaction.status !== TransactionStatus.PENDING) {
+      throw new BadRequestException('Transaction is not pending approval');
+    }
+
+    // Update transaction status to rejected (no balance update)
+    return this.prisma.transaction.update({
+      where: { id: transactionId },
+      data: {
+        status: TransactionStatus.REJECTED,
+        approvedBy,
+        approvedAt: new Date(),
+        rejectionReason,
+      },
+    });
+  }
+
+  async getTransactionById(transactionId: string) {
+    const transaction = await this.prisma.transaction.findUnique({
+      where: { id: transactionId },
+      include: {
+        caisse: true,
+        payment: {
+          include: {
+            client: true,
+          },
+        },
+      },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException(
+        `Transaction with ID ${transactionId} not found`,
+      );
+    }
+
+    return transaction;
+  }
+
+  // Update financial report generation to only include approved transactions
   async generateFinancialReport(startDate: Date, endDate: Date) {
     const transactions = await this.prisma.transaction.findMany({
       where: {
@@ -129,7 +261,7 @@ export class FinancialService {
           gte: startDate,
           lte: endDate,
         },
-        status: TransactionStatus.COMPLETED,
+        status: TransactionStatus.APPROVED, // Only approved transactions
       },
       include: {
         caisse: true,
@@ -184,20 +316,66 @@ export class FinancialService {
     });
   }
 
-  async getFinancialReports() {
-    return this.prisma.financialReport.findMany({
-      orderBy: { reportDate: 'desc' },
+  // Get financial statistics (only approved transactions for calculations)
+  async getFinancialStatistics(startDate?: Date, endDate?: Date) {
+    const where: any = {};
+
+    if (startDate || endDate) {
+      where.transactionDate = {};
+      if (startDate) where.transactionDate.gte = startDate;
+      if (endDate) where.transactionDate.lte = endDate;
+    }
+
+    // Get all transactions for display
+    const allTransactions = await this.prisma.transaction.findMany({
+      where,
+      include: {
+        caisse: true,
+        payment: {
+          include: {
+            client: true,
+          },
+        },
+      },
+      orderBy: { transactionDate: 'desc' },
     });
-  }
 
-  // Tax calculation for clients
-  calculateTaxForClient(serviceTotal: number): number {
-    return serviceTotal * 0.19; // 19% tax
-  }
+    // Get only approved transactions for calculations
+    const approvedTransactions = allTransactions.filter(
+      (t) => t.status === TransactionStatus.APPROVED,
+    );
 
-  // Profit calculation for a client
-  calculateProfitForClient(serviceTotal: number, expenses: number): number {
-    const tax = this.calculateTaxForClient(serviceTotal);
-    return serviceTotal - tax - expenses;
+    // Calculate revenue and expenses from approved transactions only
+    const revenue = approvedTransactions
+      .filter((t) => t.type === TransactionType.INCOME)
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    const expenses = approvedTransactions
+      .filter((t) => t.type === TransactionType.EXPENSE)
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    // Get transaction counts by status
+    const pendingCount = allTransactions.filter(
+      (t) => t.status === TransactionStatus.PENDING,
+    ).length;
+    const approvedCount = allTransactions.filter(
+      (t) => t.status === TransactionStatus.APPROVED,
+    ).length;
+    const rejectedCount = allTransactions.filter(
+      (t) => t.status === TransactionStatus.REJECTED,
+    ).length;
+
+    return {
+      revenue: Number(revenue.toFixed(2)),
+      expenses: Number(expenses.toFixed(2)),
+      netProfit: Number((revenue - expenses).toFixed(2)),
+      transactionCounts: {
+        total: allTransactions.length,
+        pending: pendingCount,
+        approved: approvedCount,
+        rejected: rejectedCount,
+      },
+      transactions: allTransactions, // All transactions for display
+    };
   }
 }
