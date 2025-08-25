@@ -82,13 +82,15 @@ export class FinancialController {
   @ApiOperation({ summary: 'Generate financial report' })
   @ApiResponse({ status: 201, description: 'Financial report generated' })
   generateFinancialReport(
-    @Query('startDate') startDate: string,
-    @Query('endDate') endDate: string,
+    @Body() body: { startDate?: string; endDate?: string },
   ) {
-    return this.financialService.generateFinancialReport(
-      new Date(startDate),
-      new Date(endDate),
-    );
+    const startDate = body.startDate
+      ? new Date(body.startDate)
+      : new Date(new Date().setDate(new Date().getDate() - 7)); // default last week
+
+    const endDate = body.endDate ? new Date(body.endDate) : new Date(); // default today
+
+    return this.financialService.generateFinancialReport(startDate, endDate);
   }
 
   @Get('reports')

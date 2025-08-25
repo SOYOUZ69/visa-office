@@ -12,10 +12,14 @@ import {
   TransactionType,
   TransactionStatus,
 } from '@prisma/client';
+import { EmployeeService } from '../employee/employee.service';
 
 @Injectable()
 export class PaymentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private employeeService: EmployeeService,
+  ) {}
 
   async getClientPayments(
     clientId: string,
@@ -103,7 +107,7 @@ export class PaymentsService {
       createPaymentDto.paymentOption,
     );
 
-    return this.prisma.$transaction(async (prisma) => {
+    const payment = await this.prisma.$transaction(async (prisma) => {
       // Create the payment
       const payment = await prisma.payment.create({
         data: {
@@ -190,6 +194,23 @@ export class PaymentsService {
 
       return payment;
     });
+
+    // Handle employee commission after payment is committed
+    if (client.assignedEmployeeId) {
+      try {
+        await this.employeeService.calculateAndRecordCommission(
+          client.assignedEmployeeId,
+          payment.id,
+          client.id,
+          Number(payment.totalAmount),
+        );
+      } catch (error) {
+        console.error('Failed to calculate employee commission:', error);
+        // Don't fail the payment creation if commission calculation fails
+      }
+    }
+
+    return payment;
   }
 
   async updatePayment(

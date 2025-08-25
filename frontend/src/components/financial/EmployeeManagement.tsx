@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { employeesAPI } from "@/lib/api";
 import { toast } from "sonner";
+import { CalendarIcon, Calculator, Check } from "lucide-react";
 
 interface Employee {
   id: string;
@@ -32,6 +33,7 @@ interface Employee {
   soldeCoungiee: number;
   createdAt: string;
   updatedAt: string;
+  calculatedCommission?: number;
 }
 
 export function EmployeeManagement() {
@@ -41,7 +43,10 @@ export function EmployeeManagement() {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState({
     fullName: "",
-    salaryType: "MONTHLY" as const,
+    salaryType: "MONTHLY" as
+      | "MONTHLY"
+      | "CLIENTCOMMISSION"
+      | "PERIODCOMMISSION",
     salaryAmount: "",
     commissionPercentage: "",
     soldeCoungiee: "0",
@@ -55,6 +60,7 @@ export function EmployeeManagement() {
     try {
       setLoading(true);
       const data = await employeesAPI.getAll();
+      console.log(data);
       setEmployees(data);
     } catch (error) {
       console.error("Error loading employees:", error);
@@ -144,7 +150,54 @@ export function EmployeeManagement() {
       toast.error("Erreur lors de la suppression de l'employé");
     }
   };
+  const calculateCommission = async (
+    employeeId: string,
+    paymentId: string,
+    clientId: string,
+    paymentAmount: number
+  ) => {
+    try {
+      const data = await employeesAPI.createCommission(
+        employeeId,
+        paymentId,
+        clientId,
+        paymentAmount
+      );
+      toast.success("Commission créée avec succès");
+      loadEmployees();
+    } catch (error) {
+      console.error("Error creating commission:", error);
+      toast.error("Erreur lors de la création de la commission");
+    }
+  };
+  const handleCalculateCommission = async (employee: Employee) => {
+    try {
+      const result = await employeesAPI.calculateCommission(employee.id);
+      const commissionAmount = result.totalCommission || 0;
 
+      // Update the employee in the list with the calculated commission
+      setEmployees((prevEmployees) =>
+        prevEmployees.map((emp) =>
+          emp.id === employee.id
+            ? { ...emp, calculatedCommission: commissionAmount }
+            : emp
+        )
+      );
+    } catch (error) {
+      console.error("Error calculating commission:", error);
+      toast.error("Erreur lors du calcul de la commission");
+    }
+  };
+  const handleProcessCommission = async (employee: Employee) => {
+    try {
+      const result = await employeesAPI.processCommission(employee.id);
+      toast.success("Commission traitée avec succès");
+      loadEmployees();
+    } catch (error) {
+      console.error("Error processing commission:", error);
+      toast.error("Erreur lors du traitement de la commission");
+    }
+  };
   const getSalaryTypeLabel = (type: string) => {
     switch (type) {
       case "MONTHLY":
@@ -322,6 +375,14 @@ export function EmployeeManagement() {
                           <span className="font-semibold">Créé le:</span>{" "}
                           {new Date(employee.createdAt).toLocaleDateString()}
                         </div>
+                        {employee.calculatedCommission !== undefined && (
+                          <div className="col-span-2">
+                            <span className="font-semibold text-green-600">
+                              Commission calculée:
+                            </span>{" "}
+                            {employee.calculatedCommission.toLocaleString()} MAD
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -331,6 +392,24 @@ export function EmployeeManagement() {
                         onClick={() => openEditDialog(employee)}
                       >
                         Modifier
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleCalculateCommission(employee)}
+                        className="flex items-center gap-1"
+                      >
+                        <Calculator className="h-4 w-4" />
+                        Commission
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleProcessCommission(employee)}
+                        className="flex items-center gap-1"
+                      >
+                        <Check className="h-4 w-4" />
+                        Processer Commission
                       </Button>
                       <Button
                         size="sm"

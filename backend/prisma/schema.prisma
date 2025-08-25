@@ -152,6 +152,7 @@ model Client {
   familyMembers FamilyMember[]
   serviceItems  ServiceItem[]
   payments      Payment[]
+  employeeCommissions EmployeeCommission[]
 
   @@map("clients")
 }
@@ -238,6 +239,7 @@ model Payment {
   installments PaymentInstallment[]
   transactions Transaction[]
   serviceItems  ServiceItem[]
+  employeeCommissions EmployeeCommission[]
   @@map("payments")
 }
 
@@ -325,6 +327,7 @@ model Employee {
   // Relations
   assignedClients Client[] // Clients assigned to this employee
   attendance      Attendance[]
+  commissions     EmployeeCommission[]
 
   @@map("employees")
 }
@@ -341,4 +344,22 @@ model Attendance {
 
   @@unique([employeeId, date]) // One attendance record per employee per day
   @@map("attendance")
+}
+
+model EmployeeCommission {
+  id              String   @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  paymentId       String
+  payment         Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  clientId        String
+  client          Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  commissionAmount Decimal @db.Decimal(10,2)
+  commissionPercentage Decimal @db.Decimal(5,2)
+  paymentAmount   Decimal @db.Decimal(10,2)
+  processed       Boolean @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("employee_commissions")
 }

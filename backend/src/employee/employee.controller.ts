@@ -179,6 +179,62 @@ export class EmployeeController {
       endDate,
     );
   }
+  // Commission Management
+  @Post(':id/commission/create')
+  @ApiOperation({ summary: 'Create employee commission' })
+  @ApiParam({ name: 'id', description: 'Employee ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Commission Created successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Employee not found',
+  })
+  createCommission(
+    @Param('id') employeeId: string,
+    @Body()
+    body: {
+      paymentId: string;
+      clientId: string;
+      paymentAmount: number;
+    },
+  ) {
+    const paymentId = body.paymentId;
+    const clientId = body.clientId;
+    const paymentAmount = body.paymentAmount;
+    return this.employeeService.calculateAndRecordCommission(
+      employeeId,
+      paymentId,
+      clientId,
+      paymentAmount,
+    );
+  }
+
+  @Post(':id/commission/process')
+  @ApiOperation({ summary: 'Process employee commissions' })
+  @ApiParam({ name: 'id', description: 'Employee ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Commissions processed successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Employee not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'No unprocessed commissions found',
+  })
+  processCommission(
+    @Param('id') employeeId: string,
+    @Body() body?: { commissionIds?: string[] },
+  ) {
+    return this.employeeService.processCommission(
+      employeeId,
+      body?.commissionIds,
+    );
+  }
 
   @Post(':id/calculate-solde')
   @ApiOperation({ summary: 'Calculate monthly solde coungiee' })

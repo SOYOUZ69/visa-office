@@ -23,7 +23,6 @@ import {
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Client Portal", href: "/clients", icon: Users },
-  { name: "Employee Management", href: "/employees", icon: UserPlus },
   {
     name: "Système Financier",
     href: "/financial",

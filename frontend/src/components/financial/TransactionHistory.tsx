@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { financialAPI } from "@/lib/api";
 import { toast } from "sonner";
 import { ArrowUpRight, ArrowDownRight, DollarSign, Plus } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 
 interface Transaction {
   id: string;
@@ -101,12 +102,12 @@ export function TransactionHistory() {
   };
 
   const totalIncome = transactions
-    .filter((t) => t.type === "INCOME")
-    .reduce((sum, t) => sum + t.amount, 0);
+    .filter((t) => t.type === "INCOME" && t.status === "APPROVED")
+    .reduce((sum, t) => sum + Number(t.amount), 0);
 
   const totalExpenses = transactions
-    .filter((t) => t.type === "EXPENSE")
-    .reduce((sum, t) => sum + t.amount, 0);
+    .filter((t) => t.type === "EXPENSE" && t.status === "APPROVED")
+    .reduce((sum, t) => sum + Number(t.amount), 0);
 
   const resetForm = () => {
     setFormData({
@@ -303,10 +304,7 @@ export function TransactionHistory() {
               <div>
                 <p className="text-sm font-medium text-green-600">Revenus</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {totalIncome.toLocaleString("fr-FR", {
-                    style: "currency",
-                    currency: "EUR",
-                  })}
+                  {formatCurrency(totalIncome)}
                 </p>
               </div>
               <ArrowUpRight className="h-8 w-8 text-green-600" />
@@ -319,10 +317,7 @@ export function TransactionHistory() {
               <div>
                 <p className="text-sm font-medium text-red-600">Dépenses</p>
                 <p className="text-2xl font-bold text-red-600">
-                  {totalExpenses.toLocaleString("fr-FR", {
-                    style: "currency",
-                    currency: "EUR",
-                  })}
+                  {formatCurrency(totalExpenses)}
                 </p>
               </div>
               <ArrowDownRight className="h-8 w-8 text-red-600" />
@@ -341,10 +336,7 @@ export function TransactionHistory() {
                       : "text-red-600"
                   }`}
                 >
-                  {(totalIncome - totalExpenses).toLocaleString("fr-FR", {
-                    style: "currency",
-                    currency: "EUR",
-                  })}
+                  {formatCurrency(totalIncome - totalExpenses)}
                 </p>
               </div>
             </div>
@@ -400,10 +392,7 @@ export function TransactionHistory() {
                       }`}
                     >
                       {transaction.type === "EXPENSE" ? "-" : "+"}
-                      {transaction.amount.toLocaleString("fr-FR", {
-                        style: "currency",
-                        currency: "EUR",
-                      })}
+                      {formatCurrency(transaction.amount)}
                     </p>
                     <Badge className={statusColors[transaction.status]}>
                       {transaction.status}

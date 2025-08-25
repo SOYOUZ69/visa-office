@@ -1,3 +1,4 @@
+import { paymentsAPI } from './../../../frontend/src/lib/api';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -38,6 +39,9 @@ export class EmployeeService {
   async findOne(id: string): Promise<Employee> {
     const employee = await this.prisma.employee.findUnique({
       where: { id },
+      include: {
+        commissions: true,
+      },
     });
 
     if (!employee) {
@@ -224,7 +228,7 @@ export class EmployeeService {
     });
   }
 
-  // Commission Calculation
+  // Commission Calculation - Only from unprocessed commissions
   async calculateCommission(
     employeeId: string,
     startDate?: Date,
@@ -239,24 +243,40 @@ export class EmployeeService {
       throw new NotFoundException(`Employee with ID ${employeeId} not found`);
     }
 
-    // Get clients assigned to this employee
-    const assignedClients = await this.prisma.client.findMany({
-      where: {
-        assignedEmployeeId: employeeId,
-      },
-      include: {
-        payments: {
-          where: {
-            createdAt: {
-              gte: startDate || new Date(0),
-              lte: endDate || new Date(),
+    // Get unprocessed commissions for this employee
+    const whereClause: any = {
+      employeeId,
+      processed: false,
+    };
+
+    if (startDate || endDate) {
+      whereClause.createdAt = {};
+      if (startDate) whereClause.createdAt.gte = startDate;
+      if (endDate) whereClause.createdAt.lte = endDate;
+    }
+
+    const unprocessedCommissions =
+      await this.prisma.employeeCommission.findMany({
+        where: whereClause,
+        include: {
+          client: {
+            select: {
+              id: true,
+              fullName: true,
+            },
+          },
+          payment: {
+            select: {
+              id: true,
+              totalAmount: true,
+              createdAt: true,
             },
           },
         },
-      },
-    });
+        orderBy: { createdAt: 'desc' },
+      });
 
-    // Calculate commission
+    // Calculate total commission from unprocessed records
     let totalCommission = 0;
     const commissionDetails: Array<{
       clientId: string;
@@ -265,25 +285,24 @@ export class EmployeeService {
       paymentAmount: number;
       commissionAmount: number;
       commissionPercentage: string;
+      commissionId: string;
     }> = [];
 
-    for (const client of assignedClients) {
-      for (const payment of client.payments) {
-        const commissionAmount =
-          (Number(payment.totalAmount) *
-            parseFloat(employee.commissionPercentage)) /
-          100;
-        totalCommission += commissionAmount;
+    for (const commission of unprocessedCommissions) {
+      const commissionAmount = Number(commission.commissionAmount);
+      totalCommission += commissionAmount;
 
-        commissionDetails.push({
-          clientId: client.id,
-          clientName: client.fullName,
-          paymentId: payment.id,
-          paymentAmount: Number(payment.totalAmount),
-          commissionAmount,
-          commissionPercentage: employee.commissionPercentage,
-        });
-      }
+      commissionDetails.push({
+        clientId: commission.clientId,
+        clientName: commission.client.fullName,
+        paymentId: commission.paymentId,
+        paymentAmount: Number(commission.paymentAmount),
+        commissionAmount,
+        commissionPercentage: Number(
+          commission.commissionPercentage,
+        ).toString(),
+        commissionId: commission.id,
+      });
     }
 
     return {
@@ -292,11 +311,115 @@ export class EmployeeService {
       commissionPercentage: employee.commissionPercentage,
       totalCommission,
       commissionDetails,
+      unprocessedCount: unprocessedCommissions.length,
       period: {
         startDate: startDate || new Date(0),
         endDate: endDate || new Date(),
       },
     };
+  }
+
+  // Process Commission - Mark as processed and create transaction
+  async processCommission(employeeId: string, commissionIds?: string[]) {
+    // Verify employee exists
+    const employee = await this.prisma.employee.findUnique({
+      where: { id: employeeId },
+    });
+
+    if (!employee) {
+      throw new NotFoundException(`Employee with ID ${employeeId} not found`);
+    }
+
+    // Get unprocessed commissions to process
+    const whereClause: any = {
+      employeeId,
+      processed: false,
+    };
+
+    if (commissionIds && commissionIds.length > 0) {
+      whereClause.id = { in: commissionIds };
+    }
+
+    const unprocessedCommissions =
+      await this.prisma.employeeCommission.findMany({
+        where: whereClause,
+        include: {
+          client: {
+            select: {
+              fullName: true,
+            },
+          },
+        },
+      });
+
+    if (unprocessedCommissions.length === 0) {
+      throw new Error('No unprocessed commissions found for this employee');
+    }
+
+    // Calculate total commission amount
+    const totalCommissionAmount = unprocessedCommissions.reduce(
+      (sum, commission) => sum + Number(commission.commissionAmount),
+      0,
+    );
+
+    // Get default caisse (first active caisse)
+    const defaultCaisse = await this.prisma.caisse.findFirst({
+      where: { isActive: true },
+    });
+
+    if (!defaultCaisse) {
+      throw new Error('No active caisse found for transaction');
+    }
+
+    // Use transaction to ensure data consistency
+    return await this.prisma.$transaction(async (prisma) => {
+      // Mark commissions as processed
+      await prisma.employeeCommission.updateMany({
+        where: {
+          id: { in: unprocessedCommissions.map((c) => c.id) },
+        },
+        data: {
+          processed: true,
+        },
+      });
+
+      // Create transaction record
+      const transaction = await prisma.transaction.create({
+        data: {
+          caisseId: defaultCaisse.id,
+          type: 'EXPENSE',
+          category: 'SALARIES',
+          amount: totalCommissionAmount,
+          description: `Commission payment for ${employee.fullName}`,
+          reference: `Employee: ${employee.fullName}, Commissions: ${unprocessedCommissions.length}`,
+          status: 'PENDING', // Auto-approve commission payments
+          approvedAt: new Date(),
+          transactionDate: new Date(),
+        },
+      });
+
+      // Update caisse balance
+      await prisma.caisse.update({
+        where: { id: defaultCaisse.id },
+        data: {
+          balance: {
+            decrement: totalCommissionAmount,
+          },
+        },
+      });
+
+      return {
+        processedCommissions: unprocessedCommissions.length,
+        totalAmount: totalCommissionAmount,
+        transactionId: transaction.id,
+        employeeName: employee.fullName,
+        commissionDetails: unprocessedCommissions.map((commission) => ({
+          clientName: commission.client.fullName,
+          commissionAmount: Number(commission.commissionAmount),
+          paymentAmount: Number(commission.paymentAmount),
+        })),
+      };
+    });
   }
 
   // Get all employees with their current solde coungiee and commission info
@@ -345,5 +468,139 @@ export class EmployeeService {
         assignedClientsCount: employee.assignedClients.length,
       };
     });
+  }
+  async calculateAndRecordCommission(
+    employeeId: string,
+    paymentId: string,
+    clientId: string,
+    paymentAmount: number,
+  ) {
+    // Get employee details
+    const employee = await this.prisma.employee.findUnique({
+      where: { id: employeeId },
+    });
+
+    if (!employee) {
+      throw new Error(`Employee with ID ${employeeId} not found`);
+    }
+
+    // Only process commission for CLIENTCOMMISSION type employees
+    if (employee.salaryType !== 'CLIENTCOMMISSION') {
+      return null;
+    }
+
+    // Calculate commission amount
+    const commissionPercentage = parseFloat(employee.commissionPercentage);
+    const commissionAmount = (paymentAmount * commissionPercentage) / 100;
+
+    // Create commission record
+    const commissionRecord = await this.prisma.employeeCommission.create({
+      data: {
+        employeeId: employee.id,
+        paymentId: paymentId,
+        clientId: clientId,
+        commissionAmount: commissionAmount,
+        commissionPercentage: commissionPercentage,
+        paymentAmount: paymentAmount,
+      },
+    });
+
+    // Update employee salary amount
+    await this.prisma.employee.update({
+      where: { id: employee.id },
+      data: {
+        salaryAmount: {
+          increment: commissionAmount,
+        },
+      },
+    });
+
+    console.log(
+      `Commission of ${commissionAmount} TND added for employee ${employee.fullName}`,
+    );
+
+    return commissionRecord;
+  }
+
+  /**
+   * Get commission history for an employee
+   */
+  async getEmployeeCommissionHistory(
+    employeeId: string,
+    startDate?: Date,
+    endDate?: Date,
+  ) {
+    const where: any = { employeeId };
+
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = startDate;
+      if (endDate) where.createdAt.lte = endDate;
+    }
+
+    return this.prisma.employeeCommission.findMany({
+      where,
+      include: {
+        client: {
+          select: {
+            id: true,
+            fullName: true,
+          },
+        },
+        payment: {
+          select: {
+            id: true,
+            totalAmount: true,
+            createdAt: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Get commission summary for an employee in a date range
+   */
+  async getEmployeeCommissionSummary(
+    employeeId: string,
+    startDate: Date,
+    endDate: Date,
+  ) {
+    const commissions = await this.prisma.employeeCommission.findMany({
+      where: {
+        employeeId,
+        createdAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        client: {
+          select: {
+            fullName: true,
+          },
+        },
+      },
+    });
+
+    const totalCommission = commissions.reduce(
+      (sum, commission) => sum + Number(commission.commissionAmount),
+      0,
+    );
+
+    const commissionDetails = commissions.map((commission) => ({
+      clientName: commission.client.fullName,
+      paymentAmount: Number(commission.paymentAmount),
+      commissionAmount: Number(commission.commissionAmount),
+      commissionPercentage: Number(commission.commissionPercentage),
+      date: commission.createdAt,
+    }));
+
+    return {
+      totalCommission,
+      commissionDetails,
+      period: { startDate, endDate },
+    };
   }
 }

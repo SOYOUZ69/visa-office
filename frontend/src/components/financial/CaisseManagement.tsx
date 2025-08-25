@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { financialAPI } from "@/lib/api";
 import { toast } from "sonner";
+import { formatCurrency } from "@/lib/utils";
 import {
   Wallet,
   Plus,
@@ -166,10 +167,7 @@ export function CaisseManagement() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {parseFloat(caisse.balance).toLocaleString("fr-FR", {
-                    style: "currency",
-                    currency: "EUR",
-                  })}
+                  {formatCurrency(caisse.balance)}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {caisseTypeLabels[caisse.type]}

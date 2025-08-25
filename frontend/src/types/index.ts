@@ -109,12 +109,6 @@ export interface CreateClientData {
   employers?: { name: string; position?: string }[];
 }
 
-export interface CreateFamilyMemberData {
-  fullName: string;
-  relationship: string;
-  age?: number;
-}
-
 export interface QueryParams {
   page?: number;
   limit?: number;
@@ -128,7 +122,7 @@ export interface ServiceItem {
   clientId: string;
   serviceType: string;
   quantity: number;
-  unitPrice: string;
+  unitPrice: number;
   isProcessed: boolean;
   paymentId?: string;
   createdAt: string;
@@ -174,7 +168,7 @@ export interface PaymentInstallment {
   id: string;
   description: string;
   percentage: string;
-  amount: string;
+  amount: number;
   dueDate: string;
   paymentOption?: PaymentOption;
   transferCode?: string;
@@ -186,7 +180,7 @@ export interface PaymentInstallment {
 export interface Payment {
   id: string;
   clientId: string;
-  totalAmount: string;
+  totalAmount: number;
   paymentOption?: PaymentOption;
   paymentModality: PaymentModality;
   transferCode?: string;

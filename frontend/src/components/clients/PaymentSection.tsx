@@ -43,6 +43,7 @@ import {
 } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { formatCurrency } from "@/lib/utils";
 import {
   Plus,
   Save,
@@ -126,6 +127,16 @@ export function PaymentSection({
     ? payments.find((p) => p.id === editingPaymentId)
     : null;
 
+  // Determine the correct amount to use for payment calculations
+  const getPaymentAmount = () => {
+    // If there are unprocessed services, use their total amount
+    if (unprocessedServices && unprocessedServices.totalAmount > 0) {
+      return unprocessedServices.totalAmount;
+    }
+    // Otherwise use the services total
+    return servicesTotal;
+  };
+
   // Add a button to show the form for adding new payments
 
   useEffect(() => {
@@ -139,10 +150,17 @@ export function PaymentSection({
   // Calculate services total when services change
   useEffect(() => {
     const total = services.reduce((sum, service) => {
-      return sum + service.quantity * parseFloat(service.unitPrice);
+      return sum + service.quantity * service.unitPrice;
     }, 0);
     setServicesTotal(total);
   }, [services]);
+
+  // Update services total when unprocessed services are available
+  useEffect(() => {
+    if (unprocessedServices && unprocessedServices.totalAmount > 0) {
+      setServicesTotal(unprocessedServices.totalAmount);
+    }
+  }, [unprocessedServices]);
 
   // Update installment amounts when total or percentages change (only when not editing existing payment)
   useEffect(() => {
@@ -156,6 +174,7 @@ export function PaymentSection({
       return;
     }
 
+    const paymentAmount = getPaymentAmount();
     const updatedInstallments = watchedInstallments.map((installment) => {
       const percentage =
         typeof installment.percentage === "string"
@@ -165,7 +184,7 @@ export function PaymentSection({
       return {
         ...installment,
         percentage, // Ensure percentage is a number
-        amount: (servicesTotal * percentage) / 100,
+        amount: (paymentAmount * percentage) / 100,
       };
     });
 
@@ -181,7 +200,14 @@ export function PaymentSection({
     if (hasChanged) {
       form.setValue("installments", updatedInstallments);
     }
-  }, [servicesTotal, form, isEditing, editingPaymentId, shouldShowConfigForm]); // Remove watchedInstallments from dependencies to avoid infinite loops
+  }, [
+    servicesTotal,
+    unprocessedServices,
+    form,
+    isEditing,
+    editingPaymentId,
+    shouldShowConfigForm,
+  ]); // Remove watchedInstallments from dependencies to avoid infinite loops
 
   // Handle payment modality changes (only when not editing existing payment)
   useEffect(() => {
@@ -195,13 +221,14 @@ export function PaymentSection({
       return;
     }
 
+    const paymentAmount = getPaymentAmount();
     switch (watchedPaymentModality) {
       case "FULL_PAYMENT":
         replace([
           {
             description: "Full Payment",
             percentage: 100,
-            amount: servicesTotal,
+            amount: paymentAmount,
             dueDate: "",
             status: "PENDING",
           },
@@ -212,20 +239,20 @@ export function PaymentSection({
           {
             description: "First Payment - 60%",
             percentage: 60,
-            amount: servicesTotal * 0.6,
+            amount: paymentAmount * 0.6,
             dueDate: "",
-            paymentOption: "CASH",
-            transferCode: "",
-            status: "PENDING",
+            paymentOption: "CASH" as const,
+            transferCode: undefined,
+            status: "PENDING" as const,
           },
           {
             description: "Second Payment - 40%",
             percentage: 40,
-            amount: servicesTotal * 0.4,
+            amount: paymentAmount * 0.4,
             dueDate: "",
-            paymentOption: "CASH",
-            transferCode: "",
-            status: "PENDING",
+            paymentOption: "CASH" as const,
+            transferCode: undefined,
+            status: "PENDING" as const,
           },
         ]);
         break;
@@ -238,11 +265,11 @@ export function PaymentSection({
             (_, index) => ({
               description: `Installment ${index + 1}`,
               percentage: defaultPercentage,
-              amount: (servicesTotal * defaultPercentage) / 100,
+              amount: (paymentAmount * defaultPercentage) / 100,
               dueDate: "",
-              paymentOption: "CASH",
-              transferCode: "",
-              status: "PENDING",
+              paymentOption: "CASH" as const,
+              transferCode: undefined,
+              status: "PENDING" as const,
             })
           );
           replace(defaultInstallments);
@@ -252,6 +279,7 @@ export function PaymentSection({
   }, [
     watchedPaymentModality,
     servicesTotal,
+    unprocessedServices,
     numberOfInstallments,
     replace,
     fields.length,
@@ -317,6 +345,7 @@ export function PaymentSection({
   };
 
   const resetPaymentForm = () => {
+    const paymentAmount = getPaymentAmount();
     form.reset({
       paymentOption: "CASH",
       paymentModality: "FULL_PAYMENT",
@@ -325,9 +354,9 @@ export function PaymentSection({
         {
           description: "Full Payment",
           percentage: 100,
-          amount: unprocessedServices?.totalAmount || servicesTotal,
+          amount: paymentAmount,
           dueDate: "",
-          status: "PENDING",
+          status: "PENDING" as const,
         },
       ],
     });
@@ -341,14 +370,15 @@ export function PaymentSection({
   const addInstallment = () => {
     const remainingPercentage =
       100 - watchedInstallments.reduce((sum, inst) => sum + inst.percentage, 0);
+    const paymentAmount = getPaymentAmount();
     append({
       description: `Installment ${fields.length + 1}`,
       percentage: Math.max(0, remainingPercentage),
-      amount: (servicesTotal * Math.max(0, remainingPercentage)) / 100,
+      amount: (paymentAmount * Math.max(0, remainingPercentage)) / 100,
       dueDate: "",
-      paymentOption: "CASH",
-      transferCode: "",
-      status: "PENDING",
+      paymentOption: "CASH" as const,
+      transferCode: undefined,
+      status: "PENDING" as const,
     });
   };
 
@@ -361,15 +391,16 @@ export function PaymentSection({
   const updateNumberOfInstallments = (count: number) => {
     setNumberOfInstallments(count);
     if (watchedPaymentModality === "MILESTONE_PAYMENTS") {
+      const paymentAmount = getPaymentAmount();
       const percentage = 100 / count;
       const newInstallments = Array.from({ length: count }, (_, index) => ({
         description: `Installment ${index + 1}`,
         percentage,
-        amount: (servicesTotal * percentage) / 100,
+        amount: (paymentAmount * percentage) / 100,
         dueDate: "",
-        paymentOption: "CASH",
-        transferCode: "",
-        status: "PENDING",
+        paymentOption: "CASH" as const,
+        transferCode: undefined,
+        status: "PENDING" as const,
       }));
       replace(newInstallments);
     }
@@ -414,9 +445,9 @@ export function PaymentSection({
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("fr-TN", {
       style: "currency",
-      currency: "USD",
+      currency: "TND",
     }).format(amount);
   };
 
@@ -510,7 +541,7 @@ export function PaymentSection({
     }
 
     const payload: CreatePaymentData = {
-      totalAmount: servicesTotal,
+      totalAmount: getPaymentAmount(),
       paymentOption:
         formData.paymentModality === "FULL_PAYMENT"
           ? formData.paymentOption
@@ -634,7 +665,7 @@ export function PaymentSection({
         installments: payment.installments.map((installment) => ({
           description: installment.description,
           percentage: parseFloat(installment.percentage),
-          amount: parseFloat(installment.amount),
+          amount: installment.amount,
           dueDate: installment.dueDate.split("T")[0], // Convert ISO date to YYYY-MM-DD
           paymentOption:
             payment.paymentModality !== "FULL_PAYMENT"
@@ -737,7 +768,9 @@ export function PaymentSection({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-blue-900">
-                Total of Services:
+                {unprocessedServices && unprocessedServices.totalAmount > 0
+                  ? "Unprocessed Services Total:"
+                  : "Total of Services:"}
               </span>
               {isAdmin && (
                 <Button
@@ -753,7 +786,7 @@ export function PaymentSection({
               )}
             </div>
             <span className="text-lg font-bold text-blue-900">
-              {formatCurrency(servicesTotal)}
+              {formatCurrency(getPaymentAmount())}
             </span>
           </div>
         </div>
@@ -815,12 +848,10 @@ export function PaymentSection({
                         </TableCell>
                         <TableCell>{service.quantity}</TableCell>
                         <TableCell>
-                          {formatCurrency(parseFloat(service.unitPrice))}
+                          {formatCurrency(service.unitPrice)}
                         </TableCell>
                         <TableCell>
-                          {formatCurrency(
-                            service.quantity * parseFloat(service.unitPrice)
-                          )}
+                          {formatCurrency(service.quantity * service.unitPrice)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -846,7 +877,7 @@ export function PaymentSection({
           </div>
         )}
 
-        {isAdmin && shouldShowConfigForm && (
+        {isAdmin && (shouldShowConfigForm || showNewPaymentForm) && (
           <form className="space-y-6">
             {/* Edit Mode Header */}
             {isEditing && (
@@ -1220,7 +1251,7 @@ export function PaymentSection({
                         {calculateTotalPercentage().toFixed(2)}%
                       </TableCell>
                       <TableCell className="font-semibold">
-                        {formatCurrency(servicesTotal)}
+                        {formatCurrency(getPaymentAmount())}
                       </TableCell>
                       <TableCell></TableCell>
                       {(watchedPaymentModality === "SIXTY_FORTY" ||
@@ -1269,7 +1300,7 @@ export function PaymentSection({
         )}
 
         {/* Payment History - Only show when not editing and payments exist */}
-        {!shouldShowConfigForm && payments.length > 0 && (
+        {payments.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">Payment History</h3>
@@ -1295,12 +1326,12 @@ export function PaymentSection({
                     <div className="flex items-center justify-between">
                       <div>
                         <h4 className="font-semibold">
-                          {getPaymentOptionLabel(payment.paymentOption)} -{" "}
-                          {getPaymentModalityLabel(payment.paymentModality)}
+                          {payment.paymentOption &&
+                            getPaymentOptionLabel(payment.paymentOption)}{" "}
+                          - {getPaymentModalityLabel(payment.paymentModality)}
                         </h4>
                         <p className="text-sm text-gray-600">
-                          Total:{" "}
-                          {formatCurrency(parseFloat(payment.totalAmount))}
+                          Total: {formatCurrency(payment.totalAmount)}
                         </p>
                         {payment.caisse && (
                           <p className="text-sm text-blue-600">
@@ -1354,7 +1385,7 @@ export function PaymentSection({
                               {parseFloat(installment.percentage)}%
                             </TableCell>
                             <TableCell>
-                              {formatCurrency(parseFloat(installment.amount))}
+                              {formatCurrency(installment.amount)}
                             </TableCell>
                             <TableCell>
                               {new Date(
@@ -1363,8 +1394,10 @@ export function PaymentSection({
                             </TableCell>
                             <TableCell>
                               {payment.paymentModality === "FULL_PAYMENT"
-                                ? getPaymentOptionLabel(payment.paymentOption)
-                                : getPaymentOptionLabel(
+                                ? payment.paymentOption &&
+                                  getPaymentOptionLabel(payment.paymentOption)
+                                : installment.paymentOption &&
+                                  getPaymentOptionLabel(
                                     installment.paymentOption
                                   )}
                             </TableCell>

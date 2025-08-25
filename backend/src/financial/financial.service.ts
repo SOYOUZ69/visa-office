@@ -293,15 +293,33 @@ export class FinancialService {
       where: { isActive: true },
     });
 
-    const caisseBalances = caisses.reduce((acc, caisse) => {
-      acc[caisse.id] = {
-        name: caisse.name,
-        type: caisse.type,
-        balance: caisse.balance,
-      };
-      return acc;
-    }, {});
-
+    const caisseBalances = JSON.parse(
+      JSON.stringify(
+        caisses.reduce((acc, caisse) => {
+          acc[caisse.id] = {
+            name: caisse.name,
+            type: caisse.type,
+            balance: caisse.balance,
+          };
+          return acc;
+        }, {}),
+      ),
+    );
+    console.log(
+      JSON.stringify(
+        {
+          periodStart: startDate,
+          periodEnd: endDate,
+          totalIncome,
+          totalExpenses,
+          totalTax,
+          netProfit,
+          caisseBalances,
+        },
+        null,
+        2,
+      ),
+    );
     // Create financial report
     return this.prisma.financialReport.create({
       data: {

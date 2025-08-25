@@ -31,6 +31,7 @@ import {
   Clock,
 } from "lucide-react";
 import { Caisse, FinancialStatistics, Transaction } from "@/types";
+import { formatCurrency } from "@/lib/utils";
 
 interface FinancialReport {
   id: string;
@@ -54,6 +55,13 @@ export function FinancialDashboard() {
   const [generating, setGenerating] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState("month");
   const [showStatistics, setShowStatistics] = useState(false);
+  const [customDateRange, setCustomDateRange] = useState({
+    startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+      .toISOString()
+      .split("T")[0],
+    endDate: new Date().toISOString().split("T")[0],
+  });
+  const [useCustomRange, setUseCustomRange] = useState(false);
 
   // Statistics date range
   const [statsDateRange, setStatsDateRange] = useState({
@@ -98,31 +106,53 @@ export function FinancialDashboard() {
   const generateReport = async () => {
     setGenerating(true);
     try {
-      const startDate = new Date();
-      const endDate = new Date();
+      let startDate: Date;
+      let endDate: Date;
 
-      switch (selectedPeriod) {
-        case "week":
-          startDate.setDate(startDate.getDate() - 7);
-          break;
-        case "month":
-          startDate.setMonth(startDate.getMonth() - 1);
-          break;
-        case "quarter":
-          startDate.setMonth(startDate.getMonth() - 3);
-          break;
-        case "year":
-          startDate.setFullYear(startDate.getFullYear() - 1);
-          break;
+      if (useCustomRange) {
+        startDate = new Date(customDateRange.startDate);
+        endDate = new Date(customDateRange.endDate);
+
+        // Validate custom date range
+        if (startDate > endDate) {
+          toast.error("La date de début doit être antérieure à la date de fin");
+          setGenerating(false);
+          return;
+        }
+
+        if (endDate > new Date()) {
+          toast.error("La date de fin ne peut pas être dans le futur");
+          setGenerating(false);
+          return;
+        }
+      } else {
+        startDate = new Date();
+        endDate = new Date();
+
+        switch (selectedPeriod) {
+          case "week":
+            startDate.setDate(startDate.getDate() - 7);
+            break;
+          case "month":
+            startDate.setMonth(startDate.getMonth() - 1);
+            break;
+          case "quarter":
+            startDate.setMonth(startDate.getMonth() - 3);
+            break;
+          case "year":
+            startDate.setFullYear(startDate.getFullYear() - 1);
+            break;
+        }
       }
 
       await financialAPI.generateFinancialReport(
-        startDate.toISOString().split("T")[0],
-        endDate.toISOString().split("T")[0]
+        startDate.toISOString(),
+        endDate.toISOString()
       );
       toast.success("Financial report generated successfully");
       loadData();
     } catch (error) {
+      console.error("Failed to generate financial report:", error);
       toast.error("Failed to generate financial report");
     } finally {
       setGenerating(false);
@@ -159,6 +189,61 @@ export function FinancialDashboard() {
     }
   };
 
+  const getCurrentPeriodDisplay = () => {
+    if (useCustomRange) {
+      return `${new Date(customDateRange.startDate).toLocaleDateString(
+        "fr-FR"
+      )} - ${new Date(customDateRange.endDate).toLocaleDateString("fr-FR")}`;
+    }
+
+    const now = new Date();
+    let startDate = new Date();
+
+    switch (selectedPeriod) {
+      case "week":
+        startDate.setDate(now.getDate() - 7);
+        return `${startDate.toLocaleDateString(
+          "fr-FR"
+        )} - ${now.toLocaleDateString("fr-FR")}`;
+      case "month":
+        startDate.setMonth(now.getMonth() - 1);
+        return `${startDate.toLocaleDateString(
+          "fr-FR"
+        )} - ${now.toLocaleDateString("fr-FR")}`;
+      case "quarter":
+        startDate.setMonth(now.getMonth() - 3);
+        return `${startDate.toLocaleDateString(
+          "fr-FR"
+        )} - ${now.toLocaleDateString("fr-FR")}`;
+      case "year":
+        startDate.setFullYear(now.getFullYear() - 1);
+        return `${startDate.toLocaleDateString(
+          "fr-FR"
+        )} - ${now.toLocaleDateString("fr-FR")}`;
+      default:
+        return "";
+    }
+  };
+
+  const getPeriodName = () => {
+    if (useCustomRange) {
+      return "Période personnalisée";
+    }
+
+    switch (selectedPeriod) {
+      case "week":
+        return "Cette semaine";
+      case "month":
+        return "Ce mois";
+      case "quarter":
+        return "Ce trimestre";
+      case "year":
+        return "Cette année";
+      default:
+        return "";
+    }
+  };
+
   const latestReport = reports[0];
 
   // Calculate current totals from caisses
@@ -177,27 +262,144 @@ export function FinancialDashboard() {
 
   return (
     <div className="space-y-6">
+      <h2 className="text-2xl font-bold">Tableau Financier</h2>
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Tableau Financier</h2>
         <div className="flex items-center gap-4">
           <Button variant="outline" onClick={loadStatistics}>
             <BarChart3 className="w-4 h-4 mr-2" />
             View Statistics
           </Button>
-          <select
-            value={selectedPeriod}
-            onChange={(e) => setSelectedPeriod(e.target.value)}
-            className="border rounded-md px-3 py-2"
-          >
-            <option value="week">Cette semaine</option>
-            <option value="month">Ce mois</option>
-            <option value="quarter">Ce trimestre</option>
-            <option value="year">Cette année</option>
-          </select>
+
+          {/* Report Generation Controls */}
+          <div className="flex items-center gap-2 border rounded-lg p-2 bg-gray-50">
+            <div className="flex items-center gap-2">
+              <input
+                type="radio"
+                id="presetPeriod"
+                checked={!useCustomRange}
+                onChange={() => setUseCustomRange(false)}
+                className="w-4 h-4"
+              />
+              <label htmlFor="presetPeriod" className="text-sm font-medium">
+                Période prédéfinie:
+              </label>
+              <select
+                value={selectedPeriod}
+                onChange={(e) => setSelectedPeriod(e.target.value)}
+                className="border rounded-md px-2 py-1 text-sm"
+                disabled={useCustomRange}
+              >
+                <option value="week">Cette semaine</option>
+                <option value="month">Ce mois</option>
+                <option value="quarter">Ce trimestre</option>
+                <option value="year">Cette année</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="radio"
+                id="customPeriod"
+                checked={useCustomRange}
+                onChange={() => setUseCustomRange(true)}
+                className="w-4 h-4"
+              />
+              <label htmlFor="customPeriod" className="text-sm font-medium">
+                Période personnalisée:
+              </label>
+              <Input
+                type="date"
+                value={customDateRange.startDate}
+                onChange={(e) =>
+                  setCustomDateRange({
+                    ...customDateRange,
+                    startDate: e.target.value,
+                  })
+                }
+                className="w-32 text-sm"
+                disabled={!useCustomRange}
+              />
+              <span className="text-sm">à</span>
+              <Input
+                type="date"
+                value={customDateRange.endDate}
+                onChange={(e) =>
+                  setCustomDateRange({
+                    ...customDateRange,
+                    endDate: e.target.value,
+                  })
+                }
+                className="w-32 text-sm"
+                disabled={!useCustomRange}
+              />
+            </div>
+          </div>
+
+          {/* Quick Preset Buttons */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setUseCustomRange(false);
+                setSelectedPeriod("week");
+              }}
+              className="text-xs"
+            >
+              Semaine
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setUseCustomRange(false);
+                setSelectedPeriod("month");
+              }}
+              className="text-xs"
+            >
+              Mois
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setUseCustomRange(false);
+                setSelectedPeriod("quarter");
+              }}
+              className="text-xs"
+            >
+              Trimestre
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setUseCustomRange(false);
+                setSelectedPeriod("year");
+              }}
+              className="text-xs"
+            >
+              Année
+            </Button>
+          </div>
+
           <Button onClick={generateReport} disabled={generating}>
             <Calculator className="w-4 h-4 mr-2" />
             {generating ? "Génération..." : "Générer Rapport"}
           </Button>
+        </div>
+
+        {/* Current Period Display */}
+        <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-blue-600" />
+            <span className="text-sm font-medium text-blue-800">
+              {getPeriodName()}:
+            </span>
+            <span className="text-sm text-blue-700">
+              {getCurrentPeriodDisplay()}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -264,10 +466,7 @@ export function FinancialDashboard() {
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold text-green-600">
-                          {statistics.revenue.toLocaleString("fr-FR", {
-                            style: "currency",
-                            currency: "EUR",
-                          })}
+                          {formatCurrency(statistics.revenue)}
                         </div>
                         <p className="text-xs text-muted-foreground">
                           From approved transactions only
@@ -284,10 +483,7 @@ export function FinancialDashboard() {
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold text-red-600">
-                          {statistics.expenses.toLocaleString("fr-FR", {
-                            style: "currency",
-                            currency: "EUR",
-                          })}
+                          {formatCurrency(statistics.expenses)}
                         </div>
                         <p className="text-xs text-muted-foreground">
                           From approved transactions only
@@ -310,10 +506,7 @@ export function FinancialDashboard() {
                               : "text-red-600"
                           }`}
                         >
-                          {statistics.netProfit.toLocaleString("fr-FR", {
-                            style: "currency",
-                            currency: "EUR",
-                          })}
+                          {formatCurrency(statistics.netProfit)}
                         </div>
                         <p className="text-xs text-muted-foreground">
                           Revenue - Expenses
@@ -419,12 +612,7 @@ export function FinancialDashboard() {
                                   </Badge>
                                 </TableCell>
                                 <TableCell>
-                                  {parseFloat(
-                                    transaction.amount
-                                  ).toLocaleString("fr-FR", {
-                                    style: "currency",
-                                    currency: "EUR",
-                                  })}
+                                  {formatCurrency(transaction.amount)}
                                 </TableCell>
                                 <TableCell>
                                   {getStatusBadge(transaction.status)}
@@ -462,10 +650,7 @@ export function FinancialDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {totalCaisseBalance.toLocaleString("fr-FR", {
-                style: "currency",
-                currency: "EUR",
-              })}
+              {formatCurrency(totalCaisseBalance)}
             </div>
             <p className="text-xs text-muted-foreground">
               Solde actuel de toutes les caisses
@@ -537,10 +722,7 @@ export function FinancialDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {latestReport.totalIncome.toLocaleString("fr-FR", {
-                    style: "currency",
-                    currency: "EUR",
-                  })}
+                  {formatCurrency(latestReport.totalIncome)}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Période:{" "}
@@ -562,10 +744,7 @@ export function FinancialDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-red-600">
-                  {latestReport.totalExpenses.toLocaleString("fr-FR", {
-                    style: "currency",
-                    currency: "EUR",
-                  })}
+                  {formatCurrency(latestReport.totalExpenses)}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Toutes les dépenses de l'office
@@ -582,10 +761,7 @@ export function FinancialDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-orange-600">
-                  {latestReport.totalTax.toLocaleString("fr-FR", {
-                    style: "currency",
-                    currency: "EUR",
-                  })}
+                  {formatCurrency(latestReport.totalTax)}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   19% sur les revenus
@@ -608,10 +784,7 @@ export function FinancialDashboard() {
                       : "text-red-600"
                   }`}
                 >
-                  {latestReport.netProfit.toLocaleString("fr-FR", {
-                    style: "currency",
-                    currency: "EUR",
-                  })}
+                  {formatCurrency(latestReport.netProfit)}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Revenus - Dépenses - Taxes
@@ -644,10 +817,7 @@ export function FinancialDashboard() {
                       </div>
                       <div className="text-right">
                         <p className="font-bold">
-                          {caisse.balance.toLocaleString("fr-FR", {
-                            style: "currency",
-                            currency: "EUR",
-                          })}
+                          {formatCurrency(caisse.balance)}
                         </p>
                       </div>
                     </div>

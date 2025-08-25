@@ -334,13 +334,10 @@ export const financialAPI = {
     return response.data;
   },
   generateFinancialReport: async (startDate: string, endDate: string) => {
-    const response = await api.post(
-      "/api/v1/financial/reports/generate",
-      null,
-      {
-        params: { startDate, endDate },
-      }
-    );
+    const response = await api.post("/api/v1/financial/reports/generate", {
+      startDate,
+      endDate,
+    });
     return response.data;
   },
 
@@ -412,6 +409,25 @@ export const employeesAPI = {
     const response = await api.get(
       `/api/v1/employees/${employeeId}/commission`,
       { params }
+    );
+    return response.data;
+  },
+  createCommission: async (
+    employeeId: string,
+    paymentId: string,
+    clientId: string,
+    paymentAmount: number
+  ) => {
+    const response = await api.post(
+      `/api/v1/employees/${employeeId}/commission/create`,
+      { paymentId, clientId, paymentAmount }
+    );
+    return response.data;
+  },
+  processCommission: async (employeeId: string, commissionIds?: string[]) => {
+    const response = await api.post(
+      `/api/v1/employees/${employeeId}/commission/process`,
+      { commissionIds }
     );
     return response.data;
   },

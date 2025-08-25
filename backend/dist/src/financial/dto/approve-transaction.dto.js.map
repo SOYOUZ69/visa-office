@@ -1,1 +1,0 @@
-{"version":3,"file":"approve-transaction.dto.js","sourceRoot":"","sources":["../../../../src/financial/dto/approve-transaction.dto.ts"],"names":[],"mappings":";;;;;;;;;;;;AAAA,6CAA8C;AAC9C,qDAAuD;AAEvD,MAAa,qBAAqB;IAOhC,UAAU,CAAS;CACpB;AARD,sDAQC;AADC;IANC,IAAA,qBAAW,EAAC;QACX,WAAW,EAAE,0CAA0C;QACvD,OAAO,EAAE,SAAS;KACnB,CAAC;IACD,IAAA,0BAAQ,GAAE;IACV,IAAA,4BAAU,GAAE;;yDACM"}
