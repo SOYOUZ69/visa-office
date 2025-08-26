@@ -150,12 +150,16 @@ export class ClientsController {
   @ApiResponse({ status: 404, description: 'Client or employee not found' })
   assignEmployee(
     @Param('id') clientId: string,
-    @Body() body: { employeeId: string },
+    @Body() body: { employeeId: string; role?: string },
   ) {
-    return this.clientsService.assignEmployee(clientId, body.employeeId);
+    return this.clientsService.assignEmployee(
+      clientId,
+      body.employeeId,
+      body.role,
+    );
   }
 
-  @Post(':id/unassign-employee')
+  @Delete(':id/assign-employee')
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Unassign employee from a client' })
@@ -164,7 +168,25 @@ export class ClientsController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - admin role required' })
   @ApiResponse({ status: 404, description: 'Client not found' })
-  unassignEmployee(@Param('id') clientId: string) {
-    return this.clientsService.unassignEmployee(clientId);
+  unassignEmployee(
+    @Param('id') clientId: string,
+    @Body() body: { employeeId: string },
+  ) {
+    return this.clientsService.unassignEmployee(clientId, body.employeeId);
+  }
+
+  @Get(':id/assigned-employees')
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all employees assigned to a client' })
+  @ApiResponse({
+    status: 200,
+    description: 'Assigned employees retrieved successfully',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - admin role required' })
+  @ApiResponse({ status: 404, description: 'Client not found' })
+  getAssignedEmployees(@Param('id') clientId: string) {
+    return this.clientsService.getAssignedEmployees(clientId);
   }
 }

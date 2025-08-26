@@ -1,5 +1,9 @@
 import { paymentsAPI } from './../../../frontend/src/lib/api';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
@@ -428,7 +432,11 @@ export class EmployeeService {
       include: {
         assignedClients: {
           include: {
-            payments: true,
+            client: {
+              include: {
+                payments: true,
+              },
+            },
           },
         },
         attendance: {
@@ -447,19 +455,22 @@ export class EmployeeService {
         (a) => a.status === 'ABSENT',
       ).length;
 
-      const totalCommission = employee.assignedClients.reduce((sum, client) => {
-        return (
-          sum +
-          client.payments.reduce((paymentSum, payment) => {
-            return (
-              paymentSum +
-              (Number(payment.totalAmount) *
-                parseFloat(employee.commissionPercentage)) /
-                100
-            );
-          }, 0)
-        );
-      }, 0);
+      const totalCommission = employee.assignedClients.reduce(
+        (sum, assignment) => {
+          return (
+            sum +
+            assignment.client.payments.reduce((paymentSum, payment) => {
+              return (
+                paymentSum +
+                (Number(payment.totalAmount) *
+                  parseFloat(employee.commissionPercentage)) /
+                  100
+              );
+            }, 0)
+          );
+        },
+        0,
+      );
 
       return {
         ...employee,
@@ -601,6 +612,124 @@ export class EmployeeService {
       totalCommission,
       commissionDetails,
       period: { startDate, endDate },
+    };
+  }
+
+  /**
+   * Process employee salary for a specific month
+   */
+  async processSalary(employeeId: string, month: number, year: number) {
+    // Verify employee exists
+    const employee = await this.prisma.employee.findUnique({
+      where: { id: employeeId },
+    });
+
+    if (!employee) {
+      throw new NotFoundException(`Employee with ID ${employeeId} not found`);
+    }
+
+    // Check if salary already processed for this month
+    const existingSalaryPayment = await this.prisma.salaryPayment.findUnique({
+      where: {
+        employeeId_month_year: {
+          employeeId,
+          month,
+          year,
+        },
+      },
+    });
+
+    if (existingSalaryPayment && existingSalaryPayment.processed) {
+      throw new BadRequestException(
+        `Salary already processed for ${month}/${year}`,
+      );
+    }
+
+    // Get attendance for the month
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0);
+
+    const attendance = await this.prisma.attendance.findMany({
+      where: {
+        employeeId,
+        date: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+    });
+
+    // Calculate attendance bonus (assuming 22 working days per month)
+    const workingDays = 22;
+    const presentDays = attendance.filter((a) => a.status === 'PRESENT').length;
+    const attendanceBonus = presentDays >= workingDays ? 50 : 0; // 50 TND bonus for perfect attendance
+
+    // Calculate base salary
+    const baseSalary = Number(employee.salaryAmount);
+
+    // Calculate deductions (example: 10% for taxes)
+    const deductions = baseSalary * 0.1;
+
+    // Calculate total amount
+    const totalAmount = baseSalary + attendanceBonus - deductions;
+
+    // Create or update salary payment record
+    const salaryPayment = await this.prisma.salaryPayment.upsert({
+      where: {
+        employeeId_month_year: {
+          employeeId,
+          month,
+          year,
+        },
+      },
+      update: {
+        baseSalary,
+        attendanceBonus,
+        deductions,
+        totalAmount,
+        processed: true,
+      },
+      create: {
+        employeeId,
+        month,
+        year,
+        baseSalary,
+        attendanceBonus,
+        deductions,
+        totalAmount,
+        processed: true,
+      },
+    });
+
+    // Create financial transaction for salary payment
+    const transaction = await this.prisma.transaction.create({
+      data: {
+        amount: totalAmount,
+        type: 'EXPENSE',
+        category: 'SALARIES',
+        description: `Salary payment for ${employee.fullName} - ${month}/${year}`,
+        caisseId: 'default-caisse-id', // You might want to make this configurable
+        status: 'COMPLETED',
+      },
+    });
+
+    // Update salary payment with transaction ID
+    await this.prisma.salaryPayment.update({
+      where: { id: salaryPayment.id },
+      data: { transactionId: transaction.id },
+    });
+
+    return {
+      employeeId,
+      employeeName: employee.fullName,
+      month,
+      year,
+      baseSalary,
+      attendanceBonus,
+      deductions,
+      totalAmount,
+      transactionId: transaction.id,
+      processed: true,
     };
   }
 }

@@ -730,6 +730,7 @@ export function PaymentSection({
     );
   }
 
+  // Check if there are no unprocessed services and no existing payments
   if (servicesTotal === 0) {
     return (
       <Card>
@@ -745,6 +746,56 @@ export function PaymentSection({
         <CardContent>
           <div className="text-center py-4 text-gray-500">
             No services found. Please add services to configure payments.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Check if there are no unprocessed services but there are existing payments
+  if (
+    unprocessedServices &&
+    unprocessedServices.serviceCount === 0 &&
+    payments.length > 0
+  ) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Payment
+          </CardTitle>
+          <CardDescription>All services have been processed</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4 text-gray-500">
+            All services have been processed and payments have been configured.
+            No additional payments can be added at this time.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Check if there are no unprocessed services and no existing payments
+  if (
+    unprocessedServices &&
+    unprocessedServices.serviceCount === 0 &&
+    payments.length === 0
+  ) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Payment
+          </CardTitle>
+          <CardDescription>All services have been processed</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4 text-gray-500">
+            All services have been processed. No payments are needed at this
+            time.
           </div>
         </CardContent>
       </Card>

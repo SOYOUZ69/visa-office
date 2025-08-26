@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import { ServicesSection } from "@/components/clients/ServicesSection";
 import { PaymentSection } from "@/components/clients/PaymentSection";
+import { ClientEmployeeAssignment } from "@/types";
 
 interface ClientDetailProps {
   clientId: string;
@@ -54,10 +55,14 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
   const [client, setClient] = useState<Client | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [assignedEmployees, setAssignedEmployees] = useState<
+    ClientEmployeeAssignment[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
+  const [selectedRole, setSelectedRole] = useState<string>("");
   const { user } = useAuth();
 
   useEffect(() => {
@@ -67,14 +72,21 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
   const loadClientData = async () => {
     setLoading(true);
     try {
-      const [clientData, attachmentsData, employeesData] = await Promise.all([
+      const [
+        clientData,
+        attachmentsData,
+        employeesData,
+        assignedEmployeesData,
+      ] = await Promise.all([
         clientsAPI.getById(clientId),
         attachmentsAPI.getByClient(clientId),
         employeesAPI.getAll(),
+        clientsAPI.getAssignedEmployees(clientId),
       ]);
       setClient(clientData);
       setAttachments(attachmentsData);
       setEmployees(employeesData);
+      setAssignedEmployees(assignedEmployeesData);
     } catch (error) {
       toast.error("Failed to load client data");
       console.error("Failed to load client data:", error);
@@ -136,21 +148,33 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
     }
 
     try {
-      await clientsAPI.assignEmployee(clientId, selectedEmployeeId);
+      await clientsAPI.assignEmployee(
+        clientId,
+        selectedEmployeeId,
+        selectedRole
+      );
       toast.success("Employee assigned successfully");
       setIsAssignDialogOpen(false);
       setSelectedEmployeeId("");
+      setSelectedRole("");
       loadClientData(); // Reload client data to get updated assignment
     } catch (error) {
       toast.error("Failed to assign employee");
     }
   };
 
-  const handleUnassignEmployee = async () => {
+  const handleUnassignEmployee = async (assignmentId: string) => {
     if (!confirm("Are you sure you want to unassign this employee?")) return;
 
     try {
-      await clientsAPI.unassignEmployee(clientId);
+      // Find the assignment to get the employeeId
+      const assignment = assignedEmployees.find((a) => a.id === assignmentId);
+      if (!assignment) {
+        toast.error("Assignment not found");
+        return;
+      }
+
+      await clientsAPI.unassignEmployee(clientId, assignment.employeeId);
       toast.success("Employee unassigned successfully");
       loadClientData(); // Reload client data
     } catch (error) {
@@ -352,66 +376,101 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
               <span>Assigned Employee</span>
             </div>
             <div className="flex space-x-2">
-              {!client.assignedEmployee ? (
-                <Dialog
-                  open={isAssignDialogOpen}
-                  onOpenChange={setIsAssignDialogOpen}
-                >
-                  <DialogTrigger asChild>
-                    <Button size="sm" variant="outline">
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Assign Employee
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Assign Employee to Client</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-sm font-medium">
-                          Select Employee
-                        </label>
-                        <Select
-                          value={selectedEmployeeId}
-                          onValueChange={setSelectedEmployeeId}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Choose an employee" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {employees.map((employee) => (
-                              <SelectItem key={employee.id} value={employee.id}>
-                                {employee.fullName} (
-                                {employee.commissionPercentage}% commission)
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="flex justify-end space-x-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => setIsAssignDialogOpen(false)}
-                        >
-                          Cancel
-                        </Button>
-                        <Button onClick={handleAssignEmployee}>
-                          Assign Employee
-                        </Button>
-                      </div>
+              <Dialog
+                open={isAssignDialogOpen}
+                onOpenChange={setIsAssignDialogOpen}
+              >
+                <DialogTrigger asChild>
+                  <Button size="sm" variant="outline">
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Assign Employee
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Assign Employee to Client</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium">
+                        Select Employee
+                      </label>
+                      <Select
+                        value={selectedEmployeeId}
+                        onValueChange={setSelectedEmployeeId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose an employee" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {employees.map((employee) => (
+                            <SelectItem key={employee.id} value={employee.id}>
+                              {employee.fullName} (
+                              {employee.commissionPercentage}% commission)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  </DialogContent>
-                </Dialog>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleUnassignEmployee}
-                >
-                  <UserMinus className="h-4 w-4 mr-2" />
-                  Unassign
-                </Button>
+                    <div>
+                      <label className="text-sm font-medium">Select Role</label>
+                      <Select
+                        value={selectedRole}
+                        onValueChange={setSelectedRole}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PRIMARY_EMPLOYEE">
+                            Primary Employee
+                          </SelectItem>
+                          <SelectItem value="SECONDARY_EMPLOYEE">
+                            Secondary Employee
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex justify-end space-x-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsAssignDialogOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button onClick={handleAssignEmployee}>
+                        Assign Employee
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              {assignedEmployees.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {assignedEmployees.map((assignment) => (
+                    <Badge
+                      key={assignment.id}
+                      variant="secondary"
+                      className="flex items-center"
+                    >
+                      <User className="h-3 w-3 mr-1" />
+                      {assignment.employee.fullName} (
+                      {assignment.role
+                        ? assignment.role.replace("_", " ")
+                        : "No role"}
+                      )
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleUnassignEmployee(assignment.id)}
+                        className="ml-2"
+                      >
+                        <UserMinus className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  ))}
+                </div>
               )}
             </div>
           </CardTitle>
@@ -420,32 +479,34 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {client.assignedEmployee ? (
+          {assignedEmployees.length > 0 ? (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-500">
-                    Assigned Employee
-                  </label>
-                  <p className="text-lg font-semibold">
-                    {client.assignedEmployee.fullName}
-                  </p>
+              {assignedEmployees.map((assignment) => (
+                <div key={assignment.id} className="border rounded-lg p-4">
+                  <div className="font-semibold">
+                    {assignment.employee.fullName} (
+                    {assignment.role
+                      ? assignment.role.replace("_", " ")
+                      : "No role"}
+                    )
+                  </div>
+                  <div className="text-gray-600 space-y-1 mt-2">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-3 w-3" />
+                      <span>Salary Type: {assignment.employee.salaryType}</span>
+                    </div>
+                    {assignment.employee.commissionPercentage && (
+                      <div className="flex items-center gap-2">
+                        <Heart className="h-3 w-3" />
+                        <span>
+                          Commission Rate:{" "}
+                          {assignment.employee.commissionPercentage}%
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">
-                    Commission Rate
-                  </label>
-                  <p className="text-lg">
-                    {client.assignedEmployee.commissionPercentage}%
-                  </p>
-                </div>
-              </div>
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <strong>Note:</strong> This employee will receive commission
-                  on all payments from this client.
-                </p>
-              </div>
+              ))}
             </div>
           ) : (
             <div className="text-center py-8">

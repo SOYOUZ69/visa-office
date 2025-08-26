@@ -63,6 +63,17 @@ export class ClientsService {
         employers: true,
         attachments: true,
         familyMembers: true,
+        assignedEmployees: {
+          include: {
+            employee: {
+              select: {
+                id: true,
+                fullName: true,
+                commissionPercentage: true,
+              },
+            },
+          },
+        },
       },
     });
   }
@@ -99,6 +110,17 @@ export class ClientsService {
           employers: true,
           attachments: true,
           familyMembers: true,
+          assignedEmployees: {
+            include: {
+              employee: {
+                select: {
+                  id: true,
+                  fullName: true,
+                  commissionPercentage: true,
+                },
+              },
+            },
+          },
         },
         orderBy: { updatedAt: 'desc' },
       }),
@@ -124,11 +146,15 @@ export class ClientsService {
         employers: true,
         attachments: true,
         familyMembers: true,
-        assignedEmployee: {
-          select: {
-            id: true,
-            fullName: true,
-            commissionPercentage: true,
+        assignedEmployees: {
+          include: {
+            employee: {
+              select: {
+                id: true,
+                fullName: true,
+                commissionPercentage: true,
+              },
+            },
           },
         },
       },
@@ -213,6 +239,17 @@ export class ClientsService {
         employers: true,
         attachments: true,
         familyMembers: true,
+        assignedEmployees: {
+          include: {
+            employee: {
+              select: {
+                id: true,
+                fullName: true,
+                commissionPercentage: true,
+              },
+            },
+          },
+        },
       },
     });
   }
@@ -231,7 +268,7 @@ export class ClientsService {
     });
   }
 
-  async assignEmployee(clientId: string, employeeId: string) {
+  async assignEmployee(clientId: string, employeeId: string, role?: string) {
     // Verify client exists
     const client = await this.prisma.client.findUnique({
       where: { id: clientId },
@@ -250,58 +287,85 @@ export class ClientsService {
       throw new NotFoundException(`Employee with ID ${employeeId} not found`);
     }
 
-    // Update client with assigned employee
-    return this.prisma.client.update({
-      where: { id: clientId },
-      data: {
-        assignedEmployeeId: employeeId,
-      },
-      include: {
-        phoneNumbers: true,
-        employers: true,
-        attachments: true,
-        familyMembers: true,
-        assignedEmployee: {
-          select: {
-            id: true,
-            fullName: true,
-            commissionPercentage: true,
+    // Check if assignment already exists
+    const existingAssignment =
+      await this.prisma.clientEmployeeAssignment.findUnique({
+        where: {
+          clientId_employeeId: {
+            clientId,
+            employeeId,
           },
         },
-      },
-    });
-  }
+      });
 
-  async unassignEmployee(clientId: string) {
-    // Verify client exists
-    const client = await this.prisma.client.findUnique({
-      where: { id: clientId },
-    });
-
-    if (!client) {
-      throw new NotFoundException(`Client with ID ${clientId} not found`);
+    if (existingAssignment) {
+      if (existingAssignment.isActive) {
+        throw new Error('Employee is already assigned to this client');
+      } else {
+        // Reactivate existing assignment
+        await this.prisma.clientEmployeeAssignment.update({
+          where: { id: existingAssignment.id },
+          data: { isActive: true, role },
+        });
+        return { message: 'Employee assignment reactivated' };
+      }
     }
 
-    // Remove employee assignment
-    return this.prisma.client.update({
-      where: { id: clientId },
+    // Create new assignment
+    await this.prisma.clientEmployeeAssignment.create({
       data: {
-        assignedEmployeeId: null,
+        clientId,
+        employeeId,
+        role,
+      },
+    });
+
+    return { message: 'Employee assigned to client successfully' };
+  }
+
+  async unassignEmployee(clientId: string, employeeId: string) {
+    const assignment = await this.prisma.clientEmployeeAssignment.findUnique({
+      where: {
+        clientId_employeeId: {
+          clientId,
+          employeeId,
+        },
+      },
+    });
+
+    if (!assignment) {
+      throw new Error('Employee is not assigned to this client');
+    }
+
+    // Soft delete by setting isActive to false
+    await this.prisma.clientEmployeeAssignment.update({
+      where: { id: assignment.id },
+      data: { isActive: false },
+    });
+
+    return { message: 'Employee unassigned from client successfully' };
+  }
+
+  async getAssignedEmployees(clientId: string) {
+    const assignments = await this.prisma.clientEmployeeAssignment.findMany({
+      where: {
+        clientId,
+        isActive: true,
       },
       include: {
-        phoneNumbers: true,
-        employers: true,
-        attachments: true,
-        familyMembers: true,
-        assignedEmployee: {
+        employee: {
           select: {
             id: true,
             fullName: true,
+            salaryType: true,
             commissionPercentage: true,
           },
         },
       },
+      orderBy: { assignedAt: 'desc' },
     });
+
+    return assignments;
   }
 
   async addFamilyMember(
@@ -388,6 +452,17 @@ export class ClientsService {
         include: {
           phoneNumbers: true,
           employers: true,
+          assignedEmployees: {
+            include: {
+              employee: {
+                select: {
+                  id: true,
+                  fullName: true,
+                  commissionPercentage: true,
+                },
+              },
+            },
+          },
         },
       });
 
@@ -432,6 +507,17 @@ export class ClientsService {
           attachments: true,
           familyMembers: true,
           serviceItems: true,
+          assignedEmployees: {
+            include: {
+              employee: {
+                select: {
+                  id: true,
+                  fullName: true,
+                  commissionPercentage: true,
+                },
+              },
+            },
+          },
           payments: {
             include: {
               installments: true,

@@ -236,6 +236,32 @@ export class EmployeeController {
     );
   }
 
+  @Post(':id/salary/process')
+  @ApiOperation({ summary: 'Process employee salary for a month' })
+  @ApiParam({ name: 'id', description: 'Employee ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Salary processed successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Employee not found',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Salary already processed for this month',
+  })
+  processSalary(
+    @Param('id') employeeId: string,
+    @Body() body: { month: number; year: number },
+  ) {
+    return this.employeeService.processSalary(
+      employeeId,
+      body.month,
+      body.year,
+    );
+  }
+
   @Post(':id/calculate-solde')
   @ApiOperation({ summary: 'Calculate monthly solde coungiee' })
   @ApiParam({ name: 'id', description: 'Employee ID' })

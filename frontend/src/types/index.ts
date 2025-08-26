@@ -47,6 +47,21 @@ export interface FamilyMember {
   updatedAt: string;
 }
 
+export interface ClientEmployeeAssignment {
+  id: string;
+  clientId: string;
+  employeeId: string;
+  assignedAt: string;
+  isActive: boolean;
+  role?: string;
+  employee: {
+    id: string;
+    fullName: string;
+    salaryType: "MONTHLY" | "CLIENTCOMMISSION" | "PERIODCOMMISSION";
+    commissionPercentage: string;
+  };
+}
+
 export interface Client {
   id: string;
   clientType: "INDIVIDUAL" | "FAMILY" | "GROUP" | "PHONE_CALL";
@@ -63,18 +78,13 @@ export interface Client {
   guardianFullName?: string;
   guardianCIN?: string;
   guardianRelationship?: string;
-  assignedEmployeeId?: string;
-  assignedEmployee?: {
-    id: string;
-    fullName: string;
-    commissionPercentage: string;
-  };
   createdAt: string;
   updatedAt: string;
   phoneNumbers: PhoneNumber[];
   employers: Employer[];
   attachments: Attachment[];
   familyMembers: FamilyMember[];
+  assignedEmployees?: ClientEmployeeAssignment[];
 }
 
 export interface ClientsResponse {

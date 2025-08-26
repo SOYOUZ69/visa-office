@@ -123,16 +123,32 @@ export const clientsAPI = {
     const response = await api.delete(`/api/v1/family-members/${id}`);
     return response.data;
   },
-  assignEmployee: async (clientId: string, employeeId: string) => {
+  assignEmployee: async (
+    clientId: string,
+    employeeId: string,
+    role?: string
+  ) => {
     const response = await api.post(
       `/api/v1/clients/${clientId}/assign-employee`,
-      { employeeId }
+      {
+        employeeId,
+        role,
+      }
     );
     return response.data;
   },
-  unassignEmployee: async (clientId: string) => {
-    const response = await api.post(
-      `/api/v1/clients/${clientId}/unassign-employee`
+  unassignEmployee: async (clientId: string, employeeId: string) => {
+    const response = await api.delete(
+      `/api/v1/clients/${clientId}/assign-employee`,
+      {
+        data: { employeeId },
+      }
+    );
+    return response.data;
+  },
+  getAssignedEmployees: async (clientId: string) => {
+    const response = await api.get(
+      `/api/v1/clients/${clientId}/assigned-employees`
     );
     return response.data;
   },
@@ -428,6 +444,13 @@ export const employeesAPI = {
     const response = await api.post(
       `/api/v1/employees/${employeeId}/commission/process`,
       { commissionIds }
+    );
+    return response.data;
+  },
+  processSalary: async (employeeId: string, month: number, year: number) => {
+    const response = await api.post(
+      `/api/v1/employees/${employeeId}/salary/process`,
+      { month, year }
     );
     return response.data;
   },

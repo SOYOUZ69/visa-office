@@ -196,16 +196,32 @@ export class PaymentsService {
     });
 
     // Handle employee commission after payment is committed
-    if (client.assignedEmployeeId) {
+    // Get all assigned employees for this client
+    const clientEmployeeAssignments =
+      await this.prisma.clientEmployeeAssignment.findMany({
+        where: {
+          clientId: client.id,
+          isActive: true,
+        },
+        include: {
+          employee: true,
+        },
+      });
+
+    // Calculate commission for each assigned employee
+    for (const assignment of clientEmployeeAssignments) {
       try {
         await this.employeeService.calculateAndRecordCommission(
-          client.assignedEmployeeId,
+          assignment.employeeId,
           payment.id,
           client.id,
           Number(payment.totalAmount),
         );
       } catch (error) {
-        console.error('Failed to calculate employee commission:', error);
+        console.error(
+          `Failed to calculate employee commission for ${assignment.employee.fullName}:`,
+          error,
+        );
         // Don't fail the payment creation if commission calculation fails
       }
     }
