@@ -350,7 +350,7 @@ model Employee {
   updatedAt            DateTime   @updatedAt
 
   // Relations
-  assignedClients DossierEmployeeAssignment[]
+  assignedDossiers DossierEmployeeAssignment[]
   attendance      Attendance[]
   commissions     EmployeeCommission[]
   salaryPayments  SalaryPayment[]

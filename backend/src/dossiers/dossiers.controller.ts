@@ -42,9 +42,11 @@ export class DossiersController {
   @Get()
   @ApiOperation({ summary: 'Get all dossiers or filter by client' })
   @ApiResponse({ status: 200, description: 'Dossiers retrieved successfully' })
-  findAll(@Query('clientId') clientId?: string): Promise<DossierResponseDto[]> {
-    if (clientId) {
-      return this.dossiersService.findAllByClient(clientId);
+  findAll(
+    @Query('dossierId') dossierId?: string,
+  ): Promise<DossierResponseDto[]> {
+    if (dossierId) {
+      return this.dossiersService.findAllByClient(dossierId);
     }
     return this.dossiersService.findAll();
   }
@@ -82,11 +84,11 @@ export class DossiersController {
   @ApiResponse({ status: 403, description: 'Forbidden - admin role required' })
   @ApiResponse({ status: 404, description: 'Client or employee not found' })
   assignEmployee(
-    @Param('id') clientId: string,
+    @Param('id') dossierId: string,
     @Body() body: { employeeId: string; role?: string },
   ) {
     return this.dossiersService.assignEmployee(
-      clientId,
+      dossierId,
       body.employeeId,
       body.role,
     );
@@ -102,10 +104,10 @@ export class DossiersController {
   @ApiResponse({ status: 403, description: 'Forbidden - admin role required' })
   @ApiResponse({ status: 404, description: 'Client not found' })
   unassignEmployee(
-    @Param('id') clientId: string,
+    @Param('id') dossierId: string,
     @Body() body: { employeeId: string },
   ) {
-    return this.dossiersService.unassignEmployee(clientId, body.employeeId);
+    return this.dossiersService.unassignEmployee(dossierId, body.employeeId);
   }
 
   @Get(':id/assigned-employees')
@@ -119,7 +121,7 @@ export class DossiersController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - admin role required' })
   @ApiResponse({ status: 404, description: 'Client not found' })
-  getAssignedEmployees(@Param('id') clientId: string) {
-    return this.dossiersService.getAssignedEmployees(clientId);
+  getAssignedEmployees(@Param('id') dossierId: string) {
+    return this.dossiersService.getAssignedEmployees(dossierId);
   }
 }

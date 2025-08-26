@@ -350,6 +350,13 @@ export class EmployeeService {
               id: true,
             },
           },
+          payment: {
+            select: {
+              id: true,
+              totalAmount: true,
+              createdAt: true,
+            },
+          },
         },
       });
 
@@ -427,7 +434,7 @@ export class EmployeeService {
   async getEmployeesWithStats() {
     const employees = await this.prisma.employee.findMany({
       include: {
-        assignedClients: {
+        assignedDossiers: {
           include: {
             dossier: {
               include: {
@@ -452,7 +459,7 @@ export class EmployeeService {
         (a) => a.status === 'ABSENT',
       ).length;
 
-      const totalCommission = employee.assignedClients.reduce(
+      const totalCommission = employee.assignedDossiers.reduce(
         (sum, assignment) => {
           return (
             sum +
@@ -473,7 +480,7 @@ export class EmployeeService {
         ...employee,
         currentMonthAbsences: absences,
         totalCommission,
-        assignedClientsCount: employee.assignedClients.length,
+        assignedDossiersCount: employee.assignedDossiers.length,
       };
     });
   }
