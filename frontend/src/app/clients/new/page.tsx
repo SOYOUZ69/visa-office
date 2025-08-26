@@ -1,19 +1,25 @@
-'use client';
+"use client";
 
-import { useSearchParams } from 'next/navigation';
-import { Layout } from '@/components/Layout';
-import { ClientForm } from '@/components/clients/ClientForm';
-import { PhoneCallClientWizard } from '@/components/clients/PhoneCallClientWizard';
-import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useSearchParams } from "next/navigation";
+import { Layout } from "@/components/Layout";
+import { ClientForm } from "@/components/clients/ClientForm";
+import { PhoneCallClientWizard } from "@/components/clients/PhoneCallClientWizard";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 export default function NewClientPage() {
   const searchParams = useSearchParams();
-  const clientType = searchParams.get('type');
+  const clientType = searchParams.get("type");
   const { user } = useAuth();
 
-  if (user?.role !== 'ADMIN') {
+  if (user?.role !== "ADMIN") {
     return (
       <ProtectedRoute>
         <Layout>
@@ -48,7 +54,7 @@ export default function NewClientPage() {
   }
 
   // Use special wizard for Phone Call clients
-  if (clientType === 'PHONE_CALL') {
+  if (clientType === "PHONE_CALL") {
     return (
       <ProtectedRoute>
         <Layout>
@@ -62,15 +68,15 @@ export default function NewClientPage() {
     <ProtectedRoute>
       <Layout>
         <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">New Client</h1>
-          <p className="text-gray-600">
-            Create a new {clientType.replace('_', ' ').toLowerCase()} client
-          </p>
-        </div>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">New Client</h1>
+            <p className="text-gray-600">
+              Create a new {clientType.replace("_", " ").toLowerCase()} client
+            </p>
+          </div>
 
-        <ClientForm clientType={clientType as any} />
-      </div>
+          <ClientForm clientType={clientType as any} />
+        </div>
       </Layout>
     </ProtectedRoute>
   );

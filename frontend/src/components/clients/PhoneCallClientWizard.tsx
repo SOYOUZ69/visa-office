@@ -1,68 +1,125 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import * as z from 'zod';
-import { toast } from 'sonner';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Checkbox } from '@/components/ui/checkbox';
-import { api, metaAPI, servicesAPI } from '@/lib/api';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import { toast } from "sonner";
+import { formatCurrency } from "@/lib/utils";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
+import { api, metaAPI, servicesAPI } from "@/lib/api";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 
-const phoneCallClientSchema = z.object({
-  clientType: z.literal('PHONE_CALL'),
-  fullName: z.string().min(1, 'Le nom complet est requis'),
-  address: z.string().min(1, "L'adresse est requise"),
-  jobTitle: z.string().optional(),
-  email: z.string().email('Email invalide'),
-  destination: z.string().min(1, 'La destination est requise'),
-  visaType: z.string().min(1, 'Le type de visa est requis'),
-  notes: z.string().optional(),
-  isMinor: z.boolean().optional().default(false),
-  guardianFullName: z.string().optional(),
-  guardianCIN: z.string().optional(),
-  guardianRelationship: z.string().optional(),
-  phoneNumbers: z.array(z.object({
-    number: z.string().min(1, 'Le numéro de téléphone est requis')
-  })).min(1, 'Au moins un numéro de téléphone est requis'),
-  employers: z.array(z.object({
-    name: z.string().min(1, "Le nom de l'employeur est requis"),
-    position: z.string().optional()
-  })).optional(),
-  services: z.array(z.object({
-    serviceType: z.enum(['TRANSLATION', 'DOSSIER_TREATMENT', 'ASSURANCE', 'VISA_APPLICATION', 'CONSULTATION', 'OTHER']),
-    quantity: z.number().min(1),
-    unitPrice: z.number().min(0)
-  })).min(1, 'Au moins un service est requis'),
-  paymentConfig: z.object({
-    totalAmount: z.number().min(0),
-    paymentOption: z.enum(['BANK_TRANSFER', 'CHEQUE', 'POST', 'CASH']),
-    paymentModality: z.enum(['FULL_PAYMENT', 'SIXTY_FORTY', 'MILESTONE_PAYMENTS']),
-    transferCode: z.string().optional(),
-    installments: z.array(z.object({
-      description: z.string().min(1),
-      percentage: z.number().min(0).max(100),
-      amount: z.number().min(0),
-      dueDate: z.string()
-    })).min(1)
+const phoneCallClientSchema = z
+  .object({
+    clientType: z.literal("PHONE_CALL"),
+    fullName: z.string().min(1, "Le nom complet est requis"),
+    address: z.string().min(1, "L'adresse est requise"),
+    jobTitle: z.string().optional(),
+    email: z.string().email("Email invalide"),
+    destination: z.string().min(1, "La destination est requise"),
+    visaType: z.string().min(1, "Le type de visa est requis"),
+    notes: z.string().optional(),
+    isMinor: z.boolean().optional().default(false),
+    guardianFullName: z.string().optional(),
+    guardianCIN: z.string().optional(),
+    guardianRelationship: z.string().optional(),
+    phoneNumbers: z
+      .array(
+        z.object({
+          number: z.string().min(1, "Le numéro de téléphone est requis"),
+        })
+      )
+      .min(1, "Au moins un numéro de téléphone est requis"),
+    employers: z
+      .array(
+        z.object({
+          name: z.string().min(1, "Le nom de l'employeur est requis"),
+          position: z.string().optional(),
+        })
+      )
+      .optional(),
+    services: z
+      .array(
+        z.object({
+          serviceType: z.enum([
+            "TRANSLATION",
+            "DOSSIER_TREATMENT",
+            "ASSURANCE",
+            "VISA_APPLICATION",
+            "CONSULTATION",
+            "OTHER",
+          ]),
+          quantity: z.number().min(1),
+          unitPrice: z.number().min(0),
+        })
+      )
+      .min(1, "Au moins un service est requis"),
+    paymentConfig: z.object({
+      totalAmount: z.number().min(0),
+      paymentOption: z.enum(["BANK_TRANSFER", "CHEQUE", "POST", "CASH"]),
+      paymentModality: z.enum([
+        "FULL_PAYMENT",
+        "SIXTY_FORTY",
+        "MILESTONE_PAYMENTS",
+      ]),
+      transferCode: z.string().optional(),
+      installments: z
+        .array(
+          z.object({
+            description: z.string().min(1),
+            percentage: z.number().min(0).max(100),
+            amount: z.number().min(0),
+            dueDate: z.string(),
+          })
+        )
+        .min(1),
+    }),
   })
-}).refine((data) => {
-  if (data.isMinor && (!data.guardianFullName || !data.guardianCIN || !data.guardianRelationship)) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'Les informations du tuteur sont requises pour les mineurs',
-  path: ['guardianFullName'],
-});
+  .refine(
+    (data) => {
+      if (
+        data.isMinor &&
+        (!data.guardianFullName ||
+          !data.guardianCIN ||
+          !data.guardianRelationship)
+      ) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "Les informations du tuteur sont requises pour les mineurs",
+      path: ["guardianFullName"],
+    }
+  );
 
 type PhoneCallClientFormData = z.infer<typeof phoneCallClientSchema>;
 
@@ -70,52 +127,66 @@ interface PhoneCallClientWizardProps {
   onCancel?: () => void;
 }
 
-export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) {
+export function PhoneCallClientWizard({
+  onCancel,
+}: PhoneCallClientWizardProps) {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [visaTypes, setVisaTypes] = useState<string[]>([]);
-  const [priceLoadingStates, setPriceLoadingStates] = useState<{ [key: number]: boolean }>({});
-  const [prefilledPrices, setPrefilledPrices] = useState<{ [key: number]: boolean }>({});
-  const [userModifiedPrices, setUserModifiedPrices] = useState<{ [key: number]: boolean }>({});
-  const [debounceTimers, setDebounceTimers] = useState<{ [key: number]: NodeJS.Timeout }>({});
+  const [priceLoadingStates, setPriceLoadingStates] = useState<{
+    [key: number]: boolean;
+  }>({});
+  const [prefilledPrices, setPrefilledPrices] = useState<{
+    [key: number]: boolean;
+  }>({});
+  const [userModifiedPrices, setUserModifiedPrices] = useState<{
+    [key: number]: boolean;
+  }>({});
+  const [debounceTimers, setDebounceTimers] = useState<{
+    [key: number]: NodeJS.Timeout;
+  }>({});
 
   const form = useForm<PhoneCallClientFormData>({
     resolver: zodResolver(phoneCallClientSchema),
     defaultValues: {
-      clientType: 'PHONE_CALL',
-      fullName: '',
-      address: '',
-      jobTitle: '',
-      email: '',
-      destination: '',
-      visaType: '',
-      notes: '',
+      clientType: "PHONE_CALL",
+      fullName: "",
+      address: "",
+      jobTitle: "",
+      email: "",
+      destination: "",
+      visaType: "",
+      notes: "",
       isMinor: false,
-      guardianFullName: '',
-      guardianCIN: '',
-      guardianRelationship: '',
-      phoneNumbers: [{ number: '' }],
+      guardianFullName: "",
+      guardianCIN: "",
+      guardianRelationship: "",
+      phoneNumbers: [{ number: "" }],
       employers: [],
-      services: [{ serviceType: 'VISA_APPLICATION', quantity: 1, unitPrice: 0 }],
+      services: [
+        { serviceType: "VISA_APPLICATION", quantity: 1, unitPrice: 0 },
+      ],
       paymentConfig: {
         totalAmount: 0,
-        paymentOption: 'CASH',
-        paymentModality: 'FULL_PAYMENT',
-        transferCode: '',
-        installments: [{
-          description: 'Paiement complet',
-          percentage: 100,
-          amount: 0,
-          dueDate: new Date().toISOString().split('T')[0]
-        }]
-      }
-    }
+        paymentOption: "CASH",
+        paymentModality: "FULL_PAYMENT",
+        transferCode: "",
+        installments: [
+          {
+            description: "Paiement complet",
+            percentage: 100,
+            amount: 0,
+            dueDate: new Date().toISOString().split("T")[0],
+          },
+        ],
+      },
+    },
   });
 
-  const watchServices = form.watch('services');
-  const watchPaymentModality = form.watch('paymentConfig.paymentModality');
-  const watchPaymentOption = form.watch('paymentConfig.paymentOption');
+  const watchServices = form.watch("services");
+  const watchPaymentModality = form.watch("paymentConfig.paymentModality");
+  const watchPaymentOption = form.watch("paymentConfig.paymentOption");
 
   useEffect(() => {
     loadVisaTypes();
@@ -126,25 +197,35 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
       const types = await metaAPI.getVisaTypes();
       setVisaTypes(types);
     } catch (error) {
-      console.error('Failed to load visa types:', error);
+      console.error("Failed to load visa types:", error);
       // Set default visa types if API fails
-      setVisaTypes(['Tourist', 'Business', 'Student', 'Work', 'Transit', 'Medical']);
+      setVisaTypes([
+        "Tourist",
+        "Business",
+        "Student",
+        "Work",
+        "Transit",
+        "Medical",
+      ]);
     }
   };
 
   // Calculate total amount from services
   const calculateTotalAmount = () => {
-    const services = form.getValues('services');
-    const total = services.reduce((sum, service) => sum + (service.quantity * service.unitPrice), 0);
-    form.setValue('paymentConfig.totalAmount', total);
-    
+    const services = form.getValues("services");
+    const total = services.reduce(
+      (sum, service) => sum + service.quantity * service.unitPrice,
+      0
+    );
+    form.setValue("paymentConfig.totalAmount", total);
+
     // Update installment amounts
-    const installments = form.getValues('paymentConfig.installments');
-    const updatedInstallments = installments.map(inst => ({
+    const installments = form.getValues("paymentConfig.installments");
+    const updatedInstallments = installments.map((inst) => ({
       ...inst,
-      amount: (total * inst.percentage) / 100
+      amount: (total * inst.percentage) / 100,
     }));
-    form.setValue('paymentConfig.installments', updatedInstallments);
+    form.setValue("paymentConfig.installments", updatedInstallments);
   };
 
   // Debounced function to fetch last price
@@ -152,20 +233,20 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
     async (serviceType: string, index: number) => {
       if (!serviceType || userModifiedPrices[index]) return;
 
-      setPriceLoadingStates(prev => ({ ...prev, [index]: true }));
-      
+      setPriceLoadingStates((prev) => ({ ...prev, [index]: true }));
+
       try {
         const response = await servicesAPI.getLastPrice(serviceType);
         if (response.unitPrice !== null && !userModifiedPrices[index]) {
           form.setValue(`services.${index}.unitPrice`, response.unitPrice);
-          setPrefilledPrices(prev => ({ ...prev, [index]: true }));
+          setPrefilledPrices((prev) => ({ ...prev, [index]: true }));
           calculateTotalAmount();
         }
       } catch (error) {
-        console.error('Failed to fetch last price:', error);
+        console.error("Failed to fetch last price:", error);
         // Silent error - don't show toast for price fetching failures
       } finally {
-        setPriceLoadingStates(prev => ({ ...prev, [index]: false }));
+        setPriceLoadingStates((prev) => ({ ...prev, [index]: false }));
       }
     },
     [form, userModifiedPrices, calculateTotalAmount]
@@ -173,7 +254,7 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
 
   const handleServiceTypeChange = (value: string, index: number) => {
     form.setValue(`services.${index}.serviceType`, value);
-    
+
     // Clear any existing timer for this index
     if (debounceTimers[index]) {
       clearTimeout(debounceTimers[index]);
@@ -184,41 +265,45 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
       fetchLastPrice(value, index);
     }, 200);
 
-    setDebounceTimers(prev => ({ ...prev, [index]: timer }));
+    setDebounceTimers((prev) => ({ ...prev, [index]: timer }));
   };
 
   const handlePriceChange = (index: number, value: number) => {
-    setUserModifiedPrices(prev => ({ ...prev, [index]: true }));
-    setPrefilledPrices(prev => ({ ...prev, [index]: false }));
+    setUserModifiedPrices((prev) => ({ ...prev, [index]: true }));
+    setPrefilledPrices((prev) => ({ ...prev, [index]: false }));
     form.setValue(`services.${index}.unitPrice`, value);
     calculateTotalAmount();
   };
 
   // Handle payment modality change
   const handlePaymentModalityChange = (modality: string) => {
-    const totalAmount = form.getValues('paymentConfig.totalAmount');
-    
-    if (modality === 'FULL_PAYMENT') {
-      form.setValue('paymentConfig.installments', [{
-        description: 'Paiement complet',
-        percentage: 100,
-        amount: totalAmount,
-        dueDate: new Date().toISOString().split('T')[0]
-      }]);
-    } else if (modality === 'SIXTY_FORTY') {
-      form.setValue('paymentConfig.installments', [
+    const totalAmount = form.getValues("paymentConfig.totalAmount");
+
+    if (modality === "FULL_PAYMENT") {
+      form.setValue("paymentConfig.installments", [
         {
-          description: 'Premier versement (60%)',
+          description: "Paiement complet",
+          percentage: 100,
+          amount: totalAmount,
+          dueDate: new Date().toISOString().split("T")[0],
+        },
+      ]);
+    } else if (modality === "SIXTY_FORTY") {
+      form.setValue("paymentConfig.installments", [
+        {
+          description: "Premier versement (60%)",
           percentage: 60,
           amount: totalAmount * 0.6,
-          dueDate: new Date().toISOString().split('T')[0]
+          dueDate: new Date().toISOString().split("T")[0],
         },
         {
-          description: 'Deuxième versement (40%)',
+          description: "Deuxième versement (40%)",
           percentage: 40,
           amount: totalAmount * 0.4,
-          dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        }
+          dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+            .toISOString()
+            .split("T")[0],
+        },
       ]);
     }
   };
@@ -228,17 +313,28 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
       setIsSubmitting(true);
 
       // Validate installments sum to 100%
-      const totalPercentage = data.paymentConfig.installments.reduce((sum, inst) => sum + inst.percentage, 0);
+      const totalPercentage = data.paymentConfig.installments.reduce(
+        (sum, inst) => sum + inst.percentage,
+        0
+      );
       if (totalPercentage !== 100) {
-        toast.error('Les versements doivent totaliser 100%');
+        toast.error("Les versements doivent totaliser 100%");
         return;
       }
 
       // Check if transfer code is required
-      const today = new Date().toISOString().split('T')[0];
-      const hasDueToday = data.paymentConfig.installments.some(inst => inst.dueDate === today);
-      if (hasDueToday && data.paymentConfig.paymentOption === 'BANK_TRANSFER' && !data.paymentConfig.transferCode) {
-        toast.error('Le code de transfert est requis pour les virements dus aujourd&apos;hui');
+      const today = new Date().toISOString().split("T")[0];
+      const hasDueToday = data.paymentConfig.installments.some(
+        (inst) => inst.dueDate === today
+      );
+      if (
+        hasDueToday &&
+        data.paymentConfig.paymentOption === "BANK_TRANSFER" &&
+        !data.paymentConfig.transferCode
+      ) {
+        toast.error(
+          "Le code de transfert est requis pour les virements dus aujourd&apos;hui"
+        );
         return;
       }
 
@@ -250,13 +346,16 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
         delete submitData.guardianRelationship;
       }
 
-      const response = await api.post('/api/v1/clients/phone-call', submitData);
-      
-      toast.success('Client Phone Call créé avec succès');
+      const response = await api.post("/api/v1/clients/phone-call", submitData);
+
+      toast.success("Client Phone Call créé avec succès");
       router.push(`/clients/${response.data.id}`);
     } catch (error) {
-      console.error('Error creating phone call client:', error);
-      const message = error instanceof Error ? error.message : 'Erreur lors de la création du client';
+      console.error("Error creating phone call client:", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Erreur lors de la création du client";
       toast.error(message);
     } finally {
       setIsSubmitting(false);
@@ -323,7 +422,7 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
 
       <div className="space-y-2">
         <FormLabel>Numéros de téléphone *</FormLabel>
-        {form.watch('phoneNumbers').map((_, index) => (
+        {form.watch("phoneNumbers").map((_, index) => (
           <div key={index} className="flex gap-2">
             <FormField
               control={form.control}
@@ -337,14 +436,17 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
                 </FormItem>
               )}
             />
-            {form.watch('phoneNumbers').length > 1 && (
+            {form.watch("phoneNumbers").length > 1 && (
               <Button
                 type="button"
                 variant="outline"
                 size="icon"
                 onClick={() => {
-                  const phoneNumbers = form.getValues('phoneNumbers');
-                  form.setValue('phoneNumbers', phoneNumbers.filter((_, i) => i !== index));
+                  const phoneNumbers = form.getValues("phoneNumbers");
+                  form.setValue(
+                    "phoneNumbers",
+                    phoneNumbers.filter((_, i) => i !== index)
+                  );
                 }}
               >
                 <Trash2 className="h-4 w-4" />
@@ -357,8 +459,8 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
           variant="outline"
           size="sm"
           onClick={() => {
-            const phoneNumbers = form.getValues('phoneNumbers');
-            form.setValue('phoneNumbers', [...phoneNumbers, { number: '' }]);
+            const phoneNumbers = form.getValues("phoneNumbers");
+            form.setValue("phoneNumbers", [...phoneNumbers, { number: "" }]);
           }}
         >
           <Plus className="h-4 w-4 mr-2" /> Ajouter un numéro
@@ -430,19 +532,19 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
               />
             </FormControl>
             <div className="space-y-1 leading-none">
-              <FormLabel>
-                Mineur (moins de 18 ans)
-              </FormLabel>
+              <FormLabel>Mineur (moins de 18 ans)</FormLabel>
             </div>
           </FormItem>
         )}
       />
 
-      {form.watch('isMinor') && (
+      {form.watch("isMinor") && (
         <>
           <div className="bg-muted/50 p-4 rounded-lg space-y-4">
-            <h4 className="font-medium text-sm">Informations du tuteur (requis)</h4>
-            
+            <h4 className="font-medium text-sm">
+              Informations du tuteur (requis)
+            </h4>
+
             <FormField
               control={form.control}
               name="guardianFullName"
@@ -477,7 +579,10 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Relation *</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionner la relation" />
@@ -490,7 +595,9 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
                       <SelectItem value="Grandfather">Grand-père</SelectItem>
                       <SelectItem value="Aunt">Tante</SelectItem>
                       <SelectItem value="Uncle">Oncle</SelectItem>
-                      <SelectItem value="Legal Guardian">Tuteur légal</SelectItem>
+                      <SelectItem value="Legal Guardian">
+                        Tuteur légal
+                      </SelectItem>
                       <SelectItem value="Other">Autre</SelectItem>
                     </SelectContent>
                   </Select>
@@ -507,7 +614,7 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
   const renderStep2 = () => (
     <div className="space-y-4">
       <FormLabel>Services *</FormLabel>
-      {form.watch('services').map((_, index) => (
+      {form.watch("services").map((_, index) => (
         <Card key={index}>
           <CardContent className="pt-6">
             <div className="space-y-4">
@@ -517,10 +624,13 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Type de service</FormLabel>
-                    <Select onValueChange={(value) => {
-                      field.onChange(value);
-                      handleServiceTypeChange(value, index);
-                    }} defaultValue={field.value}>
+                    <Select
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        handleServiceTypeChange(value, index);
+                      }}
+                      defaultValue={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue />
@@ -528,10 +638,16 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="TRANSLATION">Traduction</SelectItem>
-                        <SelectItem value="DOSSIER_TREATMENT">Traitement de dossier</SelectItem>
+                        <SelectItem value="DOSSIER_TREATMENT">
+                          Traitement de dossier
+                        </SelectItem>
                         <SelectItem value="ASSURANCE">Assurance</SelectItem>
-                        <SelectItem value="VISA_APPLICATION">Demande de visa</SelectItem>
-                        <SelectItem value="CONSULTATION">Consultation</SelectItem>
+                        <SelectItem value="VISA_APPLICATION">
+                          Demande de visa
+                        </SelectItem>
+                        <SelectItem value="CONSULTATION">
+                          Consultation
+                        </SelectItem>
                         <SelectItem value="OTHER">Autre</SelectItem>
                       </SelectContent>
                     </Select>
@@ -573,14 +689,18 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
                           <Input
                             type="number"
                             step="0.01"
-                            value={field.value || ''}
+                            value={field.value || ""}
                             onChange={(e) => {
                               const value = Number(e.target.value);
                               field.onChange(value);
                               handlePriceChange(index, value);
                             }}
                             disabled={priceLoadingStates[index]}
-                            className={prefilledPrices[index] ? 'border-blue-300 bg-blue-50' : ''}
+                            className={
+                              prefilledPrices[index]
+                                ? "border-blue-300 bg-blue-50"
+                                : ""
+                            }
                           />
                           {priceLoadingStates[index] && (
                             <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
@@ -600,7 +720,7 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
                 />
               </div>
 
-              {form.watch('services').length > 1 && (
+              {form.watch("services").length > 1 && (
                 <Button
                   type="button"
                   variant="outline"
@@ -610,31 +730,34 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
                     if (debounceTimers[index]) {
                       clearTimeout(debounceTimers[index]);
                     }
-                    
+
                     // Clean up states
-                    setDebounceTimers(prev => {
+                    setDebounceTimers((prev) => {
                       const newTimers = { ...prev };
                       delete newTimers[index];
                       return newTimers;
                     });
-                    setPrefilledPrices(prev => {
+                    setPrefilledPrices((prev) => {
                       const newStates = { ...prev };
                       delete newStates[index];
                       return newStates;
                     });
-                    setUserModifiedPrices(prev => {
+                    setUserModifiedPrices((prev) => {
                       const newStates = { ...prev };
                       delete newStates[index];
                       return newStates;
                     });
-                    setPriceLoadingStates(prev => {
+                    setPriceLoadingStates((prev) => {
                       const newStates = { ...prev };
                       delete newStates[index];
                       return newStates;
                     });
-                    
-                    const services = form.getValues('services');
-                    form.setValue('services', services.filter((_, i) => i !== index));
+
+                    const services = form.getValues("services");
+                    form.setValue(
+                      "services",
+                      services.filter((_, i) => i !== index)
+                    );
                     calculateTotalAmount();
                   }}
                 >
@@ -650,14 +773,17 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
         type="button"
         variant="outline"
         onClick={() => {
-          const services = form.getValues('services');
+          const services = form.getValues("services");
           const newIndex = services.length;
-          form.setValue('services', [...services, { serviceType: 'VISA_APPLICATION', quantity: 1, unitPrice: 0 }]);
-          
+          form.setValue("services", [
+            ...services,
+            { serviceType: "VISA_APPLICATION", quantity: 1, unitPrice: 0 },
+          ]);
+
           // Reset states for new row
-          setPrefilledPrices(prev => ({ ...prev, [newIndex]: false }));
-          setUserModifiedPrices(prev => ({ ...prev, [newIndex]: false }));
-          setPriceLoadingStates(prev => ({ ...prev, [newIndex]: false }));
+          setPrefilledPrices((prev) => ({ ...prev, [newIndex]: false }));
+          setUserModifiedPrices((prev) => ({ ...prev, [newIndex]: false }));
+          setPriceLoadingStates((prev) => ({ ...prev, [newIndex]: false }));
         }}
       >
         <Plus className="h-4 w-4 mr-2" /> Ajouter un service
@@ -666,7 +792,7 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
       <Card className="bg-muted">
         <CardContent className="pt-6">
           <div className="text-lg font-semibold">
-            Total: {form.watch('paymentConfig.totalAmount').toFixed(2)} MAD
+            Total: {formatCurrency(form.watch("paymentConfig.totalAmount"))}
           </div>
         </CardContent>
       </Card>
@@ -699,7 +825,7 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
         )}
       />
 
-      {watchPaymentOption === 'BANK_TRANSFER' && (
+      {watchPaymentOption === "BANK_TRANSFER" && (
         <FormField
           control={form.control}
           name="paymentConfig.transferCode"
@@ -749,7 +875,7 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
 
       <div className="space-y-2">
         <FormLabel>Échéances de paiement</FormLabel>
-        {form.watch('paymentConfig.installments').map((_, index) => (
+        {form.watch("paymentConfig.installments").map((_, index) => (
           <Card key={index}>
             <CardContent className="pt-6">
               <div className="space-y-4">
@@ -781,8 +907,13 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
                             onChange={(e) => {
                               const percentage = Number(e.target.value);
                               field.onChange(percentage);
-                              const totalAmount = form.getValues('paymentConfig.totalAmount');
-                              form.setValue(`paymentConfig.installments.${index}.amount`, (totalAmount * percentage) / 100);
+                              const totalAmount = form.getValues(
+                                "paymentConfig.totalAmount"
+                              );
+                              form.setValue(
+                                `paymentConfig.installments.${index}.amount`,
+                                (totalAmount * percentage) / 100
+                              );
                             }}
                           />
                         </FormControl>
@@ -798,7 +929,15 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
                       <FormItem>
                         <FormLabel>Montant (MAD)</FormLabel>
                         <FormControl>
-                          <Input type="number" step="0.01" {...field} onChange={(e) => field.onChange(Number(e.target.value))} disabled />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(Number(e.target.value))
+                            }
+                            disabled
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -820,38 +959,45 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
                   />
                 </div>
 
-                {watchPaymentModality === 'MILESTONE_PAYMENTS' && form.watch('paymentConfig.installments').length > 1 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const installments = form.getValues('paymentConfig.installments');
-                      form.setValue('paymentConfig.installments', installments.filter((_, i) => i !== index));
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" /> Supprimer cette échéance
-                  </Button>
-                )}
+                {watchPaymentModality === "MILESTONE_PAYMENTS" &&
+                  form.watch("paymentConfig.installments").length > 1 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const installments = form.getValues(
+                          "paymentConfig.installments"
+                        );
+                        form.setValue(
+                          "paymentConfig.installments",
+                          installments.filter((_, i) => i !== index)
+                        );
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" /> Supprimer cette
+                      échéance
+                    </Button>
+                  )}
               </div>
             </CardContent>
           </Card>
         ))}
 
-        {watchPaymentModality === 'MILESTONE_PAYMENTS' && (
+        {watchPaymentModality === "MILESTONE_PAYMENTS" && (
           <Button
             type="button"
             variant="outline"
             onClick={() => {
-              const installments = form.getValues('paymentConfig.installments');
-              form.setValue('paymentConfig.installments', [
+              const installments = form.getValues("paymentConfig.installments");
+              form.setValue("paymentConfig.installments", [
                 ...installments,
                 {
-                  description: '',
+                  description: "",
                   percentage: 0,
                   amount: 0,
-                  dueDate: new Date().toISOString().split('T')[0]
-                }
+                  dueDate: new Date().toISOString().split("T")[0],
+                },
               ]);
             }}
           >
@@ -864,10 +1010,15 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
         <CardContent className="pt-6">
           <div className="space-y-2">
             <div className="text-lg font-semibold">
-              Montant total: {form.watch('paymentConfig.totalAmount').toFixed(2)} MAD
+              Montant total:{" "}
+              {formatCurrency(form.watch("paymentConfig.totalAmount"))}
             </div>
             <div className="text-sm text-muted-foreground">
-              Total des pourcentages: {form.watch('paymentConfig.installments').reduce((sum, inst) => sum + inst.percentage, 0)}%
+              Total des pourcentages:{" "}
+              {form
+                .watch("paymentConfig.installments")
+                .reduce((sum, inst) => sum + inst.percentage, 0)}
+              %
             </div>
           </div>
         </CardContent>
@@ -882,7 +1033,12 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
           <CardHeader>
             <CardTitle>Création d&apos;un client Phone Call</CardTitle>
             <CardDescription>
-              Étape {currentStep} sur 3 - {currentStep === 1 ? 'Informations client' : currentStep === 2 ? 'Services' : 'Configuration de paiement'}
+              Étape {currentStep} sur 3 -{" "}
+              {currentStep === 1
+                ? "Informations client"
+                : currentStep === 2
+                ? "Services"
+                : "Configuration de paiement"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -909,7 +1065,7 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
             <Button
               type="button"
               variant="outline"
-              onClick={onCancel || (() => router.push('/clients'))}
+              onClick={onCancel || (() => router.push("/clients"))}
             >
               Annuler
             </Button>
@@ -921,23 +1077,34 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
                   // Basic validation before moving to next step
                   if (currentStep === 1) {
                     const values = form.getValues();
-                    const basicFieldsComplete = values.fullName && values.email && values.address && 
-                                               values.destination && values.visaType && values.phoneNumbers.length > 0;
-                    const guardianFieldsComplete = !values.isMinor || (values.guardianFullName && values.guardianCIN && values.guardianRelationship);
-                    
+                    const basicFieldsComplete =
+                      values.fullName &&
+                      values.email &&
+                      values.address &&
+                      values.destination &&
+                      values.visaType &&
+                      values.phoneNumbers.length > 0;
+                    const guardianFieldsComplete =
+                      !values.isMinor ||
+                      (values.guardianFullName &&
+                        values.guardianCIN &&
+                        values.guardianRelationship);
+
                     if (!basicFieldsComplete) {
-                      toast.error('Veuillez remplir tous les champs requis');
+                      toast.error("Veuillez remplir tous les champs requis");
                       return;
                     }
                     if (!guardianFieldsComplete) {
-                      toast.error('Les informations du tuteur sont requises pour les mineurs');
+                      toast.error(
+                        "Les informations du tuteur sont requises pour les mineurs"
+                      );
                       return;
                     }
                   }
                   if (currentStep === 2) {
-                    const hasErrors = form.getValues('services').length === 0;
+                    const hasErrors = form.getValues("services").length === 0;
                     if (hasErrors) {
-                      toast.error('Veuillez ajouter au moins un service');
+                      toast.error("Veuillez ajouter au moins un service");
                       return;
                     }
                   }
@@ -948,7 +1115,9 @@ export function PhoneCallClientWizard({ onCancel }: PhoneCallClientWizardProps) 
               </Button>
             ) : (
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSubmitting && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 Créer le client
               </Button>
             )}

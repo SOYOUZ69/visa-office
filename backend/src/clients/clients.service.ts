@@ -1,6 +1,14 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateClientDto, PhoneNumberDto, EmployerDto } from './dto/create-client.dto';
+import {
+  CreateClientDto,
+  PhoneNumberDto,
+  EmployerDto,
+} from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { QueryClientDto } from './dto/query-client.dto';
 import { CreateFamilyMemberDto } from './dto/create-family-member.dto';
@@ -13,16 +21,27 @@ export class ClientsService {
 
   async create(createClientDto: CreateClientDto) {
     // Business rule: passportNumber is required for non-PHONE_CALL clients
-    if (createClientDto.clientType !== ClientType.PHONE_CALL && !createClientDto.passportNumber) {
-      throw new BadRequestException('Passport number is required for non-phone call clients');
+    if (
+      createClientDto.clientType !== ClientType.PHONE_CALL &&
+      !createClientDto.passportNumber
+    ) {
+      throw new BadRequestException(
+        'Passport number is required for non-phone call clients',
+      );
     }
 
-    const { phoneNumbers, employers, familyMembers, ...clientData } = createClientDto;
+    const { phoneNumbers, employers, familyMembers, ...clientData } =
+      createClientDto;
 
     // Validate familyMembers for FAMILY and GROUP types
-    if ((createClientDto.clientType === ClientType.FAMILY || createClientDto.clientType === ClientType.GROUP)) {
+    if (
+      createClientDto.clientType === ClientType.FAMILY ||
+      createClientDto.clientType === ClientType.GROUP
+    ) {
       if (!familyMembers || familyMembers.length === 0) {
-        throw new BadRequestException('Family members are required for FAMILY and GROUP client types');
+        throw new BadRequestException(
+          'Family members are required for FAMILY and GROUP client types',
+        );
       }
     }
 
@@ -143,16 +162,27 @@ export class ClientsService {
 
   async update(id: string, updateClientDto: UpdateClientDto) {
     // Business rule: passportNumber is required for non-PHONE_CALL clients
-    if (updateClientDto.clientType !== ClientType.PHONE_CALL && !updateClientDto.passportNumber) {
-      throw new BadRequestException('Passport number is required for non-phone call clients');
+    if (
+      updateClientDto.clientType !== ClientType.PHONE_CALL &&
+      !updateClientDto.passportNumber
+    ) {
+      throw new BadRequestException(
+        'Passport number is required for non-phone call clients',
+      );
     }
 
-    const { phoneNumbers, employers, familyMembers, ...clientData } = updateClientDto;
+    const { phoneNumbers, employers, familyMembers, ...clientData } =
+      updateClientDto;
 
     // Validate familyMembers for FAMILY and GROUP types
-    if (updateClientDto.clientType === ClientType.FAMILY || updateClientDto.clientType === ClientType.GROUP) {
+    if (
+      updateClientDto.clientType === ClientType.FAMILY ||
+      updateClientDto.clientType === ClientType.GROUP
+    ) {
       if (familyMembers !== undefined && familyMembers.length === 0) {
-        throw new BadRequestException('Family members are required for FAMILY and GROUP client types');
+        throw new BadRequestException(
+          'Family members are required for FAMILY and GROUP client types',
+        );
       }
     }
 
@@ -202,22 +232,31 @@ export class ClientsService {
         employers: true,
         attachments: true,
         familyMembers: true,
+        
       },
     });
   }
 
   async remove(id: string) {
-    const client = await this.findOne(id);
-    
-    // Hard delete for MVP
-    await this.prisma.client.delete({
+    const client = await this.prisma.client.findUnique({
       where: { id },
     });
 
-    return { message: 'Client deleted successfully' };
+    if (!client) {
+      throw new NotFoundException(`Client with ID ${id} not found`);
+    }
+
+    await this.prisma.client.delete({
+      where: { id },
+    });
   }
 
-  async addFamilyMember(clientId: string, createFamilyMemberDto: CreateFamilyMemberDto) {
+ 
+
+  async addFamilyMember(
+    clientId: string,
+    createFamilyMemberDto: CreateFamilyMemberDto,
+  ) {
     // Verify client exists
     await this.findOne(clientId);
 
@@ -246,28 +285,40 @@ export class ClientsService {
   }
 
   async createPhoneCallClient(dto: CreatePhoneCallClientDto) {
-    const { services, paymentConfig, phoneNumbers, employers, ...clientData } = dto;
+    const { services, paymentConfig, phoneNumbers, employers, ...clientData } =
+      dto;
 
     // Validate that client type is PHONE_CALL
     if (clientData.clientType !== ClientType.PHONE_CALL) {
-      throw new BadRequestException('This endpoint is only for Phone Call clients');
+      throw new BadRequestException(
+        'This endpoint is only for Phone Call clients',
+      );
     }
 
     // Validate payment installments sum to 100%
-    const totalPercentage = paymentConfig.installments.reduce((sum, inst) => sum + inst.percentage, 0);
+    const totalPercentage = paymentConfig.installments.reduce(
+      (sum, inst) => sum + inst.percentage,
+      0,
+    );
     if (totalPercentage !== 100) {
       throw new BadRequestException('Payment installments must sum to 100%');
     }
 
     // Validate transfer code if payment is due today and payment option is bank transfer
     const today = new Date().toISOString().split('T')[0];
-    const hasDueToday = paymentConfig.installments.some(inst => {
+    const hasDueToday = paymentConfig.installments.some((inst) => {
       const dueDate = new Date(inst.dueDate).toISOString().split('T')[0];
       return dueDate === today;
     });
 
-    if (hasDueToday && paymentConfig.paymentOption === PaymentOption.BANK_TRANSFER && !paymentConfig.transferCode) {
-      throw new BadRequestException('Transfer code is required for bank transfers due today');
+    if (
+      hasDueToday &&
+      paymentConfig.paymentOption === PaymentOption.BANK_TRANSFER &&
+      !paymentConfig.transferCode
+    ) {
+      throw new BadRequestException(
+        'Transfer code is required for bank transfers due today',
+      );
     }
 
     // Use a transaction to ensure all or nothing
@@ -286,6 +337,7 @@ export class ClientsService {
         include: {
           phoneNumbers: true,
           employers: true,
+          
         },
       });
 
@@ -316,7 +368,7 @@ export class ClientsService {
           paymentModality: paymentConfig.paymentModality,
           transferCode: paymentConfig.transferCode,
           installments: {
-            create: paymentConfig.installments.map(inst => ({
+            create: paymentConfig.installments.map((inst) => ({
               description: inst.description,
               percentage: inst.percentage,
               amount: inst.amount,

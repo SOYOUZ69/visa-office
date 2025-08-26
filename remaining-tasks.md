@@ -1,0 +1,1 @@
+-for employees with commission by client, whenever a payment is made to a client they are tagged in, their salary amount is increased.

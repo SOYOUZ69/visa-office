@@ -1,67 +1,103 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { servicesAPI, metaAPI, dossiersAPI } from '@/lib/api';
-import { ServiceItem, CreateServiceData } from '@/types';
-import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
-import { Plus, Save, Trash2, Edit, X } from 'lucide-react';
-import { mutate } from 'swr';
-import useSWR from 'swr';
+import { useState, useEffect, useCallback } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { servicesAPI, metaAPI } from "@/lib/api";
+import { ServiceItem, CreateServiceData } from "@/types";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import { Plus, Save, Trash2, Edit, X } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 
 const ServiceRowSchema = z.object({
-  serviceType: z.string().min(1, 'Service type is required'),
-  quantity: z.coerce.number().int().min(1, 'Quantity must be at least 1'),
-  unitPrice: z.coerce.number().min(0, 'Unit price must be at least 0'),
+  serviceType: z.string().min(1, "Service type is required"),
+  quantity: z.coerce.number().int().min(1, "Quantity must be at least 1"),
+  unitPrice: z.coerce.number().min(0, "Unit price must be at least 0"),
 });
 
 const ServicesFormSchema = z.object({
-  services: z.array(ServiceRowSchema).min(1, 'At least one service is required'),
+  services: z
+    .array(ServiceRowSchema)
+    .min(1, "At least one service is required"),
 });
 
 type ServicesFormData = z.infer<typeof ServicesFormSchema>;
 
 interface ServicesSectionProps {
   clientId?: string;
+  dossierId?: string;
+  dossierStatus?: string;
   isNewClient?: boolean;
 }
 
-export function ServicesSection({ clientId, dossierId, dossierStatus, isNewClient = false }: ServicesSectionProps) {
+export function ServicesSection({
+  clientId,
+  dossierId,
+  dossierStatus,
+  isNewClient = false,
+}: ServicesSectionProps) {
   const [serviceTypes, setServiceTypes] = useState<string[]>([]);
+  const [services, setServices] = useState<ServiceItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   const [saving, setSaving] = useState(false);
-  const [priceLoadingStates, setPriceLoadingStates] = useState<{ [key: number]: boolean }>({});
-  const [prefilledPrices, setPrefilledPrices] = useState<{ [key: number]: boolean }>({});
-  const [userModifiedPrices, setUserModifiedPrices] = useState<{ [key: number]: boolean }>({});
+  const [priceLoadingStates, setPriceLoadingStates] = useState<{
+    [key: number]: boolean;
+  }>({});
+  const [prefilledPrices, setPrefilledPrices] = useState<{
+    [key: number]: boolean;
+  }>({});
+  const [userModifiedPrices, setUserModifiedPrices] = useState<{
+    [key: number]: boolean;
+  }>({});
   const { user } = useAuth();
 
   // Use SWR to load services for this dossier
-  const { data: services = [], isLoading } = useSWR(
-    dossierId ? `/dossiers/${dossierId}/services` : null,
-    () => dossierId ? servicesAPI.getDossierServices(dossierId) : null,
-    {
-      revalidateOnFocus: false,
-    }
-  );
+  // const { data: services = [], isLoading } = useSWR(
+  //   dossierId ? `/dossiers/${dossierId}/services` : null,
+  //   () => dossierId ? servicesAPI.getDossierServices(dossierId) : null,
+  //   {
+  //     revalidateOnFocus: false,
+  //   }
+  // );
 
-  // Helper function to invalidate relevant caches
-  const invalidateRelatedCaches = () => {
-    if (dossierId && clientId) {
-      // Invalidate dossier services cache
-      mutate(`/dossiers/${dossierId}/services`);
-      // Invalidate dossiers list cache (for counters)
-      mutate(`/dossiers/${clientId}`);
-      // Also invalidate by ID for good measure
-      mutate(`/dossier/${dossierId}`);
-    }
-  };
+  // // Helper function to invalidate relevant caches
+  // const invalidateRelatedCaches = () => {
+  //   if (dossierId && clientId) {
+  //     // Invalidate dossier services cache
+  //     mutate(`/dossiers/${dossierId}/services`);
+  //     // Invalidate dossiers list cache (for counters)
+  //     mutate(`/dossiers/${clientId}`);
+  //     // Also invalidate by ID for good measure
+  //     mutate(`/dossier/${dossierId}`);
+  //   }
+  // };
 
   const form = useForm<ServicesFormData>({
     resolver: zodResolver(ServicesFormSchema),
@@ -72,10 +108,10 @@ export function ServicesSection({ clientId, dossierId, dossierStatus, isNewClien
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
-    name: 'services',
+    name: "services",
   });
 
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.role === "ADMIN";
 
   useEffect(() => {
     // Load service types only once
@@ -84,8 +120,8 @@ export function ServicesSection({ clientId, dossierId, dossierStatus, isNewClien
         const typesData = await metaAPI.getServiceTypes();
         setServiceTypes(typesData);
       } catch (error) {
-        console.error('Failed to load service types:', error);
-        toast.error('Failed to load service types');
+        console.error("Failed to load service types:", error);
+        toast.error("Failed to load service types");
       }
     };
 
@@ -99,39 +135,41 @@ export function ServicesSection({ clientId, dossierId, dossierStatus, isNewClien
       setPrefilledPrices({}); // Reset prefilled prices state
       setUserModifiedPrices({}); // Reset user modified prices state
       setPriceLoadingStates({}); // Reset loading states
+      setIsLoading(false);
     }
   }, [dossierId, form]);
-
 
   // Debounced function to fetch last price
   const fetchLastPrice = useCallback(
     async (serviceType: string, index: number) => {
       if (!serviceType || userModifiedPrices[index]) return;
 
-      setPriceLoadingStates(prev => ({ ...prev, [index]: true }));
-      
+      setPriceLoadingStates((prev) => ({ ...prev, [index]: true }));
+
       try {
         const response = await servicesAPI.getLastPrice(serviceType);
         if (response.unitPrice !== null && !userModifiedPrices[index]) {
           form.setValue(`services.${index}.unitPrice`, response.unitPrice);
-          setPrefilledPrices(prev => ({ ...prev, [index]: true }));
+          setPrefilledPrices((prev) => ({ ...prev, [index]: true }));
         }
       } catch (error) {
-        console.error('Failed to fetch last price:', error);
+        console.error("Failed to fetch last price:", error);
         // Silent error - don't show toast for price fetching failures
       } finally {
-        setPriceLoadingStates(prev => ({ ...prev, [index]: false }));
+        setPriceLoadingStates((prev) => ({ ...prev, [index]: false }));
       }
     },
     [form, userModifiedPrices]
   );
 
   // Debounce timer
-  const [debounceTimers, setDebounceTimers] = useState<{ [key: number]: NodeJS.Timeout }>({});
+  const [debounceTimers, setDebounceTimers] = useState<{
+    [key: number]: NodeJS.Timeout;
+  }>({});
 
   const handleServiceTypeChange = (value: string, index: number) => {
     form.setValue(`services.${index}.serviceType`, value);
-    
+
     // Clear any existing timer for this index
     if (debounceTimers[index]) {
       clearTimeout(debounceTimers[index]);
@@ -142,26 +180,26 @@ export function ServicesSection({ clientId, dossierId, dossierStatus, isNewClien
       fetchLastPrice(value, index);
     }, 200);
 
-    setDebounceTimers(prev => ({ ...prev, [index]: timer }));
+    setDebounceTimers((prev) => ({ ...prev, [index]: timer }));
   };
 
   const handlePriceChange = (index: number, value: string) => {
-    setUserModifiedPrices(prev => ({ ...prev, [index]: true }));
-    setPrefilledPrices(prev => ({ ...prev, [index]: false }));
+    setUserModifiedPrices((prev) => ({ ...prev, [index]: true }));
+    setPrefilledPrices((prev) => ({ ...prev, [index]: false }));
     form.setValue(`services.${index}.unitPrice`, parseFloat(value) || 0);
   };
 
   const addServiceRow = () => {
     const newIndex = fields.length;
     append({
-      serviceType: '',
+      serviceType: "",
       quantity: 1,
       unitPrice: 0,
     });
     // Reset states for new row
-    setPrefilledPrices(prev => ({ ...prev, [newIndex]: false }));
-    setUserModifiedPrices(prev => ({ ...prev, [newIndex]: false }));
-    setPriceLoadingStates(prev => ({ ...prev, [newIndex]: false }));
+    setPrefilledPrices((prev) => ({ ...prev, [newIndex]: false }));
+    setUserModifiedPrices((prev) => ({ ...prev, [newIndex]: false }));
+    setPriceLoadingStates((prev) => ({ ...prev, [newIndex]: false }));
   };
 
   const removeServiceRow = (index: number) => {
@@ -169,42 +207,42 @@ export function ServicesSection({ clientId, dossierId, dossierStatus, isNewClien
     if (debounceTimers[index]) {
       clearTimeout(debounceTimers[index]);
     }
-    
+
     // Clean up states
-    setDebounceTimers(prev => {
+    setDebounceTimers((prev) => {
       const newTimers = { ...prev };
       delete newTimers[index];
       return newTimers;
     });
-    setPrefilledPrices(prev => {
+    setPrefilledPrices((prev) => {
       const newStates = { ...prev };
       delete newStates[index];
       return newStates;
     });
-    setUserModifiedPrices(prev => {
+    setUserModifiedPrices((prev) => {
       const newStates = { ...prev };
       delete newStates[index];
       return newStates;
     });
-    setPriceLoadingStates(prev => {
+    setPriceLoadingStates((prev) => {
       const newStates = { ...prev };
       delete newStates[index];
       return newStates;
     });
-    
+
     remove(index);
   };
 
   const saveSingleService = async (index: number) => {
     const serviceData = form.getValues(`services.${index}`);
-    
+
     if (!serviceData.serviceType) {
-      toast.error('Please select a service type');
+      toast.error("Please select a service type");
       return;
     }
 
     if (!dossierId) {
-      toast.error('No dossier selected. Please select a dossier first.');
+      toast.error("No dossier selected. Please select a dossier first.");
       return;
     }
 
@@ -219,12 +257,12 @@ export function ServicesSection({ clientId, dossierId, dossierStatus, isNewClien
     try {
       setSaving(true);
       await servicesAPI.createService(payload);
-      toast.success('Service saved successfully');
+      toast.success("Service saved successfully");
       remove(index);
-      invalidateRelatedCaches(); // Invalidate caches to update counters and lists
+      // invalidateRelatedCaches(); // Invalidate caches to update counters and lists
     } catch (error) {
-      console.error('Failed to save service:', error);
-      toast.error('Failed to save service');
+      console.error("Failed to save service:", error);
+      toast.error("Failed to save service");
     } finally {
       setSaving(false);
     }
@@ -232,70 +270,72 @@ export function ServicesSection({ clientId, dossierId, dossierStatus, isNewClien
 
   const saveAllServices = async () => {
     const formData = form.getValues();
-    
+
     if (formData.services.length === 0) {
-      toast.error('No services to save');
+      toast.error("No services to save");
       return;
     }
 
     if (!dossierId) {
-      toast.error('No dossier selected. Please select a dossier first.');
+      toast.error("No dossier selected. Please select a dossier first.");
       return;
     }
 
     // Validate all services have service types
-    const invalidServices = formData.services.filter(s => !s.serviceType);
+    const invalidServices = formData.services.filter((s) => !s.serviceType);
     if (invalidServices.length > 0) {
-      toast.error('Please select service types for all services');
+      toast.error("Please select service types for all services");
       return;
     }
 
     // Ensure data types are correct for all services
     const payload = {
       dossierId: dossierId,
-      items: formData.services.map(service => ({
+      items: formData.services.map((service) => ({
         serviceType: service.serviceType,
         quantity: Number(service.quantity),
         unitPrice: Number(service.unitPrice),
-      }))
+      })),
     };
 
     try {
       setSaving(true);
       await servicesAPI.createManyServices(payload);
-      toast.success('Services saved successfully');
+      toast.success("Services saved successfully");
       form.reset({ services: [] });
-      invalidateRelatedCaches(); // Invalidate caches to update counters and lists
+      // invalidateRelatedCaches(); // Invalidate caches to update counters and lists
     } catch (error) {
-      console.error('Failed to save services:', error);
-      toast.error('Failed to save services');
+      console.error("Failed to save services:", error);
+      toast.error("Failed to save services");
     } finally {
       setSaving(false);
     }
   };
 
   const deleteService = async (serviceId: string) => {
-    if (!confirm('Are you sure you want to delete this service?')) return;
+    if (!confirm("Are you sure you want to delete this service?")) return;
 
     try {
       await servicesAPI.deleteService(serviceId);
-      toast.success('Service deleted successfully');
-      invalidateRelatedCaches(); // Invalidate caches to update counters and lists
+      toast.success("Service deleted successfully");
+      // invalidateRelatedCaches(); // Invalidate caches to update counters and lists
     } catch (error) {
-      console.error('Failed to delete service:', error);
-      toast.error('Failed to delete service');
+      console.error("Failed to delete service:", error);
+      toast.error("Failed to delete service");
     }
   };
 
   const calculateSubtotal = (quantity: number, unitPrice: number) => {
-    return (quantity * unitPrice).toFixed(2);
+    return formatCurrency(quantity * unitPrice);
   };
 
   const calculateTotal = () => {
     const formData = form.getValues();
-    return formData.services.reduce((total, service) => {
-      return total + (service.quantity * service.unitPrice);
-    }, 0).toFixed(2);
+    return formatCurrency(
+      formData.services.reduce((total, service) => {
+        return total + service.quantity * service.unitPrice;
+      }, 0)
+    );
   };
 
   if (isLoading && !isNewClient) {
@@ -340,7 +380,8 @@ export function ServicesSection({ clientId, dossierId, dossierStatus, isNewClien
         </CardHeader>
         <CardContent>
           <div className="text-center py-4 text-gray-500">
-            No dossier selected. Please select a dossier from the list above to view and manage services.
+            No dossier selected. Please select a dossier from the list above to
+            view and manage services.
           </div>
         </CardContent>
       </Card>
@@ -352,7 +393,10 @@ export function ServicesSection({ clientId, dossierId, dossierStatus, isNewClien
       <CardHeader>
         <CardTitle>Services</CardTitle>
         <CardDescription>
-          Manage services{dossierId ? ` for dossier (#${dossierId.slice(-8).toUpperCase()})` : ' for this client'}
+          Manage services
+          {dossierId
+            ? ` for dossier (#${dossierId.slice(-8).toUpperCase()})`
+            : " for this client"}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -389,11 +433,16 @@ export function ServicesSection({ clientId, dossierId, dossierStatus, isNewClien
             {fields.length > 0 && (
               <div className="space-y-3">
                 {fields.map((field, index) => (
-                  <div key={field.id} className="grid grid-cols-12 gap-3 items-end p-3 border rounded-lg">
+                  <div
+                    key={field.id}
+                    className="grid grid-cols-12 gap-3 items-end p-3 border rounded-lg"
+                  >
                     <div className="col-span-3">
                       <Select
                         value={form.watch(`services.${index}.serviceType`)}
-                        onValueChange={(value) => handleServiceTypeChange(value, index)}
+                        onValueChange={(value) =>
+                          handleServiceTypeChange(value, index)
+                        }
                         disabled={saving}
                       >
                         <SelectTrigger>
@@ -409,11 +458,14 @@ export function ServicesSection({ clientId, dossierId, dossierStatus, isNewClien
                       </Select>
                       {form.formState.errors.services?.[index]?.serviceType && (
                         <p className="text-sm text-red-500 mt-1">
-                          {form.formState.errors.services[index]?.serviceType?.message}
+                          {
+                            form.formState.errors.services[index]?.serviceType
+                              ?.message
+                          }
                         </p>
                       )}
                     </div>
-                    
+
                     <div className="col-span-2">
                       <Input
                         type="number"
@@ -424,11 +476,14 @@ export function ServicesSection({ clientId, dossierId, dossierStatus, isNewClien
                       />
                       {form.formState.errors.services?.[index]?.quantity && (
                         <p className="text-sm text-red-500 mt-1">
-                          {form.formState.errors.services[index]?.quantity?.message}
+                          {
+                            form.formState.errors.services[index]?.quantity
+                              ?.message
+                          }
                         </p>
                       )}
                     </div>
-                    
+
                     <div className="col-span-2">
                       <div className="relative">
                         <Input
@@ -436,10 +491,18 @@ export function ServicesSection({ clientId, dossierId, dossierStatus, isNewClien
                           placeholder="Unit Price"
                           min="0"
                           step="0.01"
-                          value={form.watch(`services.${index}.unitPrice`) || ''}
-                          onChange={(e) => handlePriceChange(index, e.target.value)}
+                          value={
+                            form.watch(`services.${index}.unitPrice`) || ""
+                          }
+                          onChange={(e) =>
+                            handlePriceChange(index, e.target.value)
+                          }
                           disabled={saving || priceLoadingStates[index]}
-                          className={prefilledPrices[index] ? 'border-blue-300 bg-blue-50' : ''}
+                          className={
+                            prefilledPrices[index]
+                              ? "border-blue-300 bg-blue-50"
+                              : ""
+                          }
                         />
                         {priceLoadingStates[index] && (
                           <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
@@ -454,11 +517,14 @@ export function ServicesSection({ clientId, dossierId, dossierStatus, isNewClien
                       )}
                       {form.formState.errors.services?.[index]?.unitPrice && (
                         <p className="text-sm text-red-500 mt-1">
-                          {form.formState.errors.services[index]?.unitPrice?.message}
+                          {
+                            form.formState.errors.services[index]?.unitPrice
+                              ?.message
+                          }
                         </p>
                       )}
                     </div>
-                    
+
                     <div className="col-span-2">
                       <Input
                         type="text"
@@ -471,7 +537,7 @@ export function ServicesSection({ clientId, dossierId, dossierStatus, isNewClien
                         className="bg-gray-50"
                       />
                     </div>
-                    
+
                     <div className="col-span-2 flex space-x-2">
                       <Button
                         type="button"
@@ -494,7 +560,7 @@ export function ServicesSection({ clientId, dossierId, dossierStatus, isNewClien
                     </div>
                   </div>
                 ))}
-                
+
                 {/* Total */}
                 {fields.length > 0 && (
                   <div className="flex justify-end">
@@ -512,7 +578,9 @@ export function ServicesSection({ clientId, dossierId, dossierStatus, isNewClien
         <div>
           <h3 className="text-lg font-medium mb-4">Services in this dossier</h3>
           {services.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">No services added yet.</p>
+            <p className="text-gray-500 text-center py-4">
+              No services added yet.
+            </p>
           ) : (
             <Table>
               <TableHeader>
@@ -530,9 +598,9 @@ export function ServicesSection({ clientId, dossierId, dossierStatus, isNewClien
                   <TableRow key={service.id}>
                     <TableCell>{service.serviceType}</TableCell>
                     <TableCell>{service.quantity}</TableCell>
-                    <TableCell>${parseFloat(service.unitPrice).toFixed(2)}</TableCell>
+                    <TableCell>{formatCurrency(service.unitPrice)}</TableCell>
                     <TableCell>
-                      ${(service.quantity * parseFloat(service.unitPrice)).toFixed(2)}
+                      {formatCurrency(service.quantity * service.unitPrice)}
                     </TableCell>
                     <TableCell>
                       {new Date(service.createdAt).toLocaleDateString()}

@@ -1,19 +1,19 @@
-import axios from 'axios';
+import axios from "axios";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('auth_token');
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("auth_token");
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -28,17 +28,22 @@ api.interceptors.request.use(
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => {
-    console.log('API Response:', response.config.url, response.status);
+    console.log("API Response:", response.config.url, response.status);
     return response;
   },
   (error) => {
-    console.error('API Error:', error.config?.url, error.response?.status, error.message);
+    console.error(
+      "API Error:",
+      error.config?.url,
+      error.response?.status,
+      error.message
+    );
     if (error.response?.status === 401) {
       // Token expired or invalid
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("user");
+        window.location.href = "/login";
       }
     }
     return Promise.reject(error);
@@ -48,11 +53,11 @@ api.interceptors.response.use(
 // Auth API
 export const authAPI = {
   login: async (email: string, password: string) => {
-    const response = await api.post('/auth/login', { email, password });
+    const response = await api.post("/auth/login", { email, password });
     return response.data;
   },
   getProfile: async () => {
-    const response = await api.get('/auth/me');
+    const response = await api.get("/auth/me");
     return response.data;
   },
 };
@@ -60,27 +65,27 @@ export const authAPI = {
 // Meta API
 export const metaAPI = {
   getClientStatuses: async () => {
-    const response = await api.get('/api/v1/meta/client-statuses');
+    const response = await api.get("/api/v1/meta/client-statuses");
     return response.data;
   },
   getVisaTypes: async () => {
-    const response = await api.get('/api/v1/meta/visa-types');
+    const response = await api.get("/api/v1/meta/visa-types");
     return response.data;
   },
   getAttachmentTypes: async () => {
-    const response = await api.get('/api/v1/meta/attachment-types');
+    const response = await api.get("/api/v1/meta/attachment-types");
     return response.data;
   },
   getServiceTypes: async () => {
-    const response = await api.get('/api/v1/meta/service-types');
+    const response = await api.get("/api/v1/meta/service-types");
     return response.data;
   },
   getPaymentOptions: async () => {
-    const response = await api.get('/api/v1/meta/payment-options');
+    const response = await api.get("/api/v1/meta/payment-options");
     return response.data;
   },
   getPaymentModalities: async () => {
-    const response = await api.get('/api/v1/meta/payment-modalities');
+    const response = await api.get("/api/v1/meta/payment-modalities");
     return response.data;
   },
 };
@@ -88,11 +93,11 @@ export const metaAPI = {
 // Clients API
 export const clientsAPI = {
   create: async (data: any) => {
-    const response = await api.post('/api/v1/clients', data);
+    const response = await api.post("/api/v1/clients", data);
     return response.data;
   },
   getAll: async (params?: any) => {
-    const response = await api.get('/api/v1/clients', { params });
+    const response = await api.get("/api/v1/clients", { params });
     return response.data;
   },
   getById: async (id: string) => {
@@ -108,11 +113,43 @@ export const clientsAPI = {
     return response.data;
   },
   addFamilyMember: async (clientId: string, data: any) => {
-    const response = await api.post(`/api/v1/clients/${clientId}/family-members`, data);
+    const response = await api.post(
+      `/api/v1/clients/${clientId}/family-members`,
+      data
+    );
     return response.data;
   },
   removeFamilyMember: async (id: string) => {
     const response = await api.delete(`/api/v1/family-members/${id}`);
+    return response.data;
+  },
+  assignEmployee: async (
+    clientId: string,
+    employeeId: string,
+    role?: string
+  ) => {
+    const response = await api.post(
+      `/api/v1/clients/${clientId}/assign-employee`,
+      {
+        employeeId,
+        role,
+      }
+    );
+    return response.data;
+  },
+  unassignEmployee: async (clientId: string, employeeId: string) => {
+    const response = await api.delete(
+      `/api/v1/clients/${clientId}/assign-employee`,
+      {
+        data: { employeeId },
+      }
+    );
+    return response.data;
+  },
+  getAssignedEmployees: async (clientId: string) => {
+    const response = await api.get(
+      `/api/v1/clients/${clientId}/assigned-employees`
+    );
     return response.data;
   },
 };
@@ -121,14 +158,18 @@ export const clientsAPI = {
 export const attachmentsAPI = {
   upload: async (clientId: string, file: File, type: string) => {
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('type', type);
-    
-    const response = await api.post(`/api/v1/clients/${clientId}/attachments`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    formData.append("file", file);
+    formData.append("type", type);
+
+    const response = await api.post(
+      `/api/v1/clients/${clientId}/attachments`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
     return response.data;
   },
   getByClient: async (clientId: string) => {
@@ -141,7 +182,7 @@ export const attachmentsAPI = {
   },
   download: async (id: string) => {
     const response = await api.get(`/api/v1/attachments/${id}/file`, {
-      responseType: 'blob',
+      responseType: "blob",
     });
     return response.data;
   },
@@ -201,12 +242,21 @@ export const servicesAPI = {
     const response = await api.delete(`/api/v1/services/${serviceId}`);
     return response.data;
   },
-  getLastPrice: async (serviceType: string): Promise<{ unitPrice: number | null }> => {
-    const response = await api.get(`/api/v1/services/last-price?serviceType=${serviceType}`);
+  getLastPrice: async (
+    serviceType: string
+  ): Promise<{ unitPrice: number | null }> => {
+    const response = await api.get(
+      `/api/v1/services/last-price?serviceType=${serviceType}`
+    );
     return response.data;
   },
-  getLastPrices: async (serviceTypes: string[]): Promise<{ [key: string]: number | null }> => {
-    const response = await api.post('/api/v1/services/last-prices', serviceTypes);
+  getLastPrices: async (
+    serviceTypes: string[]
+  ): Promise<{ [key: string]: number | null }> => {
+    const response = await api.post(
+      "/api/v1/services/last-prices",
+      serviceTypes
+    );
     return response.data;
   },
 };
@@ -231,6 +281,224 @@ export const paymentsAPI = {
   },
   deletePayment: async (paymentId: string) => {
     const response = await api.delete(`/api/v1/payments/${paymentId}`);
+    return response.data;
+  },
+  markInstallmentAsPaid: async (installmentId: string, caisseId?: string) => {
+    const params = caisseId ? { caisseId } : {};
+    const response = await api.post(
+      `/api/v1/installments/${installmentId}/mark-paid`,
+      null,
+      { params }
+    );
+    return response.data;
+  },
+  getPaymentStatistics: async () => {
+    const response = await api.get("/api/v1/payments/statistics");
+    return response.data;
+  },
+  getUnprocessedServices: async (clientId: string) => {
+    const response = await api.get(
+      `/api/v1/clients/${clientId}/unprocessed-services`
+    );
+    return response.data;
+  },
+};
+
+// Financial API
+export const financialAPI = {
+  // Caisse management
+  getCaisses: async () => {
+    const response = await api.get("/api/v1/financial/caisses");
+    return response.data;
+  },
+  createCaisse: async (data: any) => {
+    const response = await api.post("/api/v1/financial/caisses", data);
+    return response.data;
+  },
+  updateCaisse: async (id: string, data: any) => {
+    const response = await api.put(`/api/v1/financial/caisses/${id}`, data);
+    return response.data;
+  },
+  deleteCaisse: async (id: string) => {
+    const response = await api.delete(`/api/v1/financial/caisses/${id}`);
+    return response.data;
+  },
+
+  // Transaction management
+  getTransactions: async (filters?: any) => {
+    const response = await api.get("/api/v1/financial/transactions", {
+      params: filters,
+    });
+    return response.data;
+  },
+  createTransaction: async (data: any) => {
+    const response = await api.post("/api/v1/financial/transactions", data);
+    return response.data;
+  },
+
+  // Transaction approval
+  getPendingTransactions: async () => {
+    const response = await api.get("/api/v1/financial/transactions/pending");
+    return response.data;
+  },
+  approveTransaction: async (transactionId: string, approvedBy: string) => {
+    const response = await api.post(
+      `/api/v1/financial/transactions/${transactionId}/approve`,
+      {
+        approvedBy,
+      }
+    );
+    return response.data;
+  },
+  rejectTransaction: async (
+    transactionId: string,
+    approvedBy: string,
+    rejectionReason: string
+  ) => {
+    const response = await api.post(
+      `/api/v1/financial/transactions/${transactionId}/reject`,
+      {
+        approvedBy,
+        rejectionReason,
+      }
+    );
+    return response.data;
+  },
+  getTransactionById: async (transactionId: string) => {
+    const response = await api.get(
+      `/api/v1/financial/transactions/${transactionId}`
+    );
+    return response.data;
+  },
+
+  // Financial reports
+  getFinancialReports: async () => {
+    const response = await api.get("/api/v1/financial/reports");
+    return response.data;
+  },
+  generateFinancialReport: async (startDate: string, endDate: string) => {
+    const response = await api.post("/api/v1/financial/reports/generate", {
+      startDate,
+      endDate,
+    });
+    return response.data;
+  },
+
+  // Financial statistics
+  getFinancialStatistics: async (startDate?: string, endDate?: string) => {
+    const params: any = {};
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    const response = await api.get("/api/v1/financial/statistics", { params });
+    return response.data;
+  },
+};
+
+// Employees API
+export const employeesAPI = {
+  getAll: async () => {
+    const response = await api.get("/api/v1/employees");
+    return response.data;
+  },
+  getById: async (id: string) => {
+    const response = await api.get(`/api/v1/employees/${id}`);
+    return response.data;
+  },
+  create: async (data: any) => {
+    const response = await api.post("/api/v1/employees", data);
+    return response.data;
+  },
+  update: async (id: string, data: any) => {
+    const response = await api.patch(`/api/v1/employees/${id}`, data);
+    return response.data;
+  },
+  delete: async (id: string) => {
+    const response = await api.delete(`/api/v1/employees/${id}`);
+    return response.data;
+  },
+
+  // Attendance management
+  markAttendance: async (employeeId: string, data: any) => {
+    const response = await api.post(
+      `/api/v1/employees/${employeeId}/attendance`,
+      data
+    );
+    return response.data;
+  },
+  getAttendance: async (
+    employeeId: string,
+    startDate?: string,
+    endDate?: string
+  ) => {
+    const params: any = {};
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    const response = await api.get(
+      `/api/v1/employees/${employeeId}/attendance`,
+      { params }
+    );
+    return response.data;
+  },
+
+  // Commission management
+  calculateCommission: async (
+    employeeId: string,
+    startDate?: string,
+    endDate?: string
+  ) => {
+    const params: any = {};
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    const response = await api.get(
+      `/api/v1/employees/${employeeId}/commission`,
+      { params }
+    );
+    return response.data;
+  },
+  createCommission: async (
+    employeeId: string,
+    paymentId: string,
+    clientId: string,
+    paymentAmount: number
+  ) => {
+    const response = await api.post(
+      `/api/v1/employees/${employeeId}/commission/create`,
+      { paymentId, clientId, paymentAmount }
+    );
+    return response.data;
+  },
+  processCommission: async (employeeId: string, commissionIds?: string[]) => {
+    const response = await api.post(
+      `/api/v1/employees/${employeeId}/commission/process`,
+      { commissionIds }
+    );
+    return response.data;
+  },
+  processSalary: async (employeeId: string, month: number, year: number) => {
+    const response = await api.post(
+      `/api/v1/employees/${employeeId}/salary/process`,
+      { month, year }
+    );
+    return response.data;
+  },
+  calculateMonthlySoldeCoungiee: async (
+    employeeId: string,
+    month: number,
+    year: number
+  ) => {
+    const response = await api.post(
+      `/api/v1/employees/${employeeId}/calculate-solde`,
+      {
+        month,
+        year,
+      }
+    );
+    return response.data;
+  },
+
+  // Employee statistics
+  getEmployeesWithStats: async () => {
+    const response = await api.get("/api/v1/employees/stats/overview");
     return response.data;
   },
 };
