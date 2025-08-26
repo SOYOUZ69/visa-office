@@ -40,8 +40,8 @@ interface Transaction {
     type: string;
   };
   payment?: {
-    client: {
-      fullName: string;
+    dossier: {
+      dossierId: string;
     };
   };
 }
@@ -380,7 +380,7 @@ export function TransactionHistory() {
                       </p>
                       {transaction.payment && (
                         <p className="text-sm text-muted-foreground">
-                          Client: {transaction.payment.client.fullName}
+                          Dossier: {transaction.payment.dossier.dossierId}
                         </p>
                       )}
                     </div>

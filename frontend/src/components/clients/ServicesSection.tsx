@@ -34,6 +34,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Plus, Save, Trash2, Edit, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import useSWR, { mutate } from "swr";
 
 const ServiceRowSchema = z.object({
   serviceType: z.string().min(1, "Service type is required"),
@@ -63,8 +64,6 @@ export function ServicesSection({
   isNewClient = false,
 }: ServicesSectionProps) {
   const [serviceTypes, setServiceTypes] = useState<string[]>([]);
-  const [services, setServices] = useState<ServiceItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
   const [saving, setSaving] = useState(false);
   const [priceLoadingStates, setPriceLoadingStates] = useState<{
@@ -79,25 +78,25 @@ export function ServicesSection({
   const { user } = useAuth();
 
   // Use SWR to load services for this dossier
-  // const { data: services = [], isLoading } = useSWR(
-  //   dossierId ? `/dossiers/${dossierId}/services` : null,
-  //   () => dossierId ? servicesAPI.getDossierServices(dossierId) : null,
-  //   {
-  //     revalidateOnFocus: false,
-  //   }
-  // );
+  const { data: services = [], isLoading } = useSWR(
+    dossierId ? `/dossiers/${dossierId}/services` : null,
+    () => (dossierId ? servicesAPI.getDossierServices(dossierId) : null),
+    {
+      revalidateOnFocus: false,
+    }
+  );
 
-  // // Helper function to invalidate relevant caches
-  // const invalidateRelatedCaches = () => {
-  //   if (dossierId && clientId) {
-  //     // Invalidate dossier services cache
-  //     mutate(`/dossiers/${dossierId}/services`);
-  //     // Invalidate dossiers list cache (for counters)
-  //     mutate(`/dossiers/${clientId}`);
-  //     // Also invalidate by ID for good measure
-  //     mutate(`/dossier/${dossierId}`);
-  //   }
-  // };
+  // Helper function to invalidate relevant caches
+  const invalidateRelatedCaches = () => {
+    if (dossierId && clientId) {
+      // Invalidate dossier services cache
+      mutate(`/dossiers/${dossierId}/services`);
+      // Invalidate dossiers list cache (for counters)
+      mutate(`/dossiers/${clientId}`);
+      // Also invalidate by ID for good measure
+      mutate(`/dossier/${dossierId}`);
+    }
+  };
 
   const form = useForm<ServicesFormData>({
     resolver: zodResolver(ServicesFormSchema),
@@ -135,7 +134,6 @@ export function ServicesSection({
       setPrefilledPrices({}); // Reset prefilled prices state
       setUserModifiedPrices({}); // Reset user modified prices state
       setPriceLoadingStates({}); // Reset loading states
-      setIsLoading(false);
     }
   }, [dossierId, form]);
 
@@ -259,7 +257,7 @@ export function ServicesSection({
       await servicesAPI.createService(payload);
       toast.success("Service saved successfully");
       remove(index);
-      // invalidateRelatedCaches(); // Invalidate caches to update counters and lists
+      invalidateRelatedCaches(); // Invalidate caches to update counters and lists
     } catch (error) {
       console.error("Failed to save service:", error);
       toast.error("Failed to save service");
@@ -303,7 +301,7 @@ export function ServicesSection({
       await servicesAPI.createManyServices(payload);
       toast.success("Services saved successfully");
       form.reset({ services: [] });
-      // invalidateRelatedCaches(); // Invalidate caches to update counters and lists
+      invalidateRelatedCaches(); // Invalidate caches to update counters and lists
     } catch (error) {
       console.error("Failed to save services:", error);
       toast.error("Failed to save services");
@@ -318,7 +316,7 @@ export function ServicesSection({
     try {
       await servicesAPI.deleteService(serviceId);
       toast.success("Service deleted successfully");
-      // invalidateRelatedCaches(); // Invalidate caches to update counters and lists
+      invalidateRelatedCaches(); // Invalidate caches to update counters and lists
     } catch (error) {
       console.error("Failed to delete service:", error);
       toast.error("Failed to delete service");
@@ -338,19 +336,6 @@ export function ServicesSection({
     );
   };
 
-  if (isLoading && !isNewClient) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Services</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-4">Loading services...</div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   if (isNewClient) {
     return (
       <Card>
@@ -363,25 +348,6 @@ export function ServicesSection({
         <CardContent>
           <div className="text-center py-4 text-gray-500">
             Please save the client first to add services
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!dossierId) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Services</CardTitle>
-          <CardDescription>
-            Please select a dossier to manage services
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-4 text-gray-500">
-            No dossier selected. Please select a dossier from the list above to
-            view and manage services.
           </div>
         </CardContent>
       </Card>
@@ -594,7 +560,7 @@ export function ServicesSection({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {services.map((service) => (
+                {services.map((service: ServiceItem) => (
                   <TableRow key={service.id}>
                     <TableCell>{service.serviceType}</TableCell>
                     <TableCell>{service.quantity}</TableCell>

@@ -38,6 +38,20 @@ export class DossiersService {
       include: {
         serviceItems: true,
         payments: true,
+        DossierEmployeeAssignment: {
+          where: { isActive: true },
+          include: {
+            employee: {
+              select: {
+                id: true,
+                fullName: true,
+                salaryType: true,
+                commissionPercentage: true,
+              },
+            },
+          },
+          orderBy: { assignedAt: 'desc' },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -51,6 +65,20 @@ export class DossiersService {
       include: {
         serviceItems: true,
         payments: true,
+        DossierEmployeeAssignment: {
+          where: { isActive: true },
+          include: {
+            employee: {
+              select: {
+                id: true,
+                fullName: true,
+                salaryType: true,
+                commissionPercentage: true,
+              },
+            },
+          },
+          orderBy: { assignedAt: 'desc' },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -68,6 +96,20 @@ export class DossiersService {
           include: {
             installments: true,
           },
+        },
+        DossierEmployeeAssignment: {
+          where: { isActive: true },
+          include: {
+            employee: {
+              select: {
+                id: true,
+                fullName: true,
+                salaryType: true,
+                commissionPercentage: true,
+              },
+            },
+          },
+          orderBy: { assignedAt: 'desc' },
         },
       },
     });
@@ -97,6 +139,20 @@ export class DossiersService {
       include: {
         serviceItems: true,
         payments: true,
+        DossierEmployeeAssignment: {
+          where: { isActive: true },
+          include: {
+            employee: {
+              select: {
+                id: true,
+                fullName: true,
+                salaryType: true,
+                commissionPercentage: true,
+              },
+            },
+          },
+          orderBy: { assignedAt: 'desc' },
+        },
       },
     });
 
@@ -121,7 +177,7 @@ export class DossiersService {
     const totalAmount =
       dossier.serviceItems?.reduce(
         (sum: number, item: any) =>
-          sum + Number(item.unitPrice) * item.quantity,
+          item.isProcessed ? sum : sum + Number(item.unitPrice) * item.quantity,
         0,
       ) || 0;
 
@@ -134,6 +190,7 @@ export class DossiersService {
       totalAmount,
       servicesCount: dossier.serviceItems?.length || 0,
       paymentsCount: dossier.payments?.length || 0,
+      assignedEmployees: dossier.DossierEmployeeAssignment || [],
     };
   }
   async assignEmployee(dossierId: string, employeeId: string, role?: string) {
@@ -188,7 +245,7 @@ export class DossiersService {
       },
     });
 
-    return { message: 'Employee assigned to client successfully' };
+    return { message: 'Employee assigned to dossier successfully' };
   }
 
   async unassignEmployee(dossierId: string, employeeId: string) {
@@ -234,5 +291,11 @@ export class DossiersService {
     });
 
     return assignments;
+  }
+  async getUnprocessedServices(dossierId: string) {
+    const services = await this.prisma.serviceItem.findMany({
+      where: { dossierId, isProcessed: false },
+    });
+    return services;
   }
 }

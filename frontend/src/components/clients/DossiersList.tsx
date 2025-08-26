@@ -1,48 +1,76 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Label } from '@/components/ui/label'
-import { Plus, FolderOpen, Calendar, DollarSign, Package, CreditCard, CheckCircle2 } from 'lucide-react'
-import { Dossier, DossierStatus } from '@/types'
-import { dossiersAPI } from '@/lib/api'
-import { toast } from 'sonner'
-import useSWR from 'swr'
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import {
+  Plus,
+  FolderOpen,
+  Calendar,
+  DollarSign,
+  Package,
+  CreditCard,
+  CheckCircle2,
+} from "lucide-react";
+import { Dossier, DossierStatus } from "@/types";
+import { dossiersAPI } from "@/lib/api";
+import { toast } from "sonner";
+import useSWR from "swr";
+import { DossierDetails } from "./DossierDetails";
 
 interface DossiersListProps {
-  clientId: string
-  clientName: string
-  onDossierSelect?: (dossier: Dossier | null) => void
+  clientId: string;
+  clientName: string;
+  onDossierSelect?: (dossier: Dossier | null) => void;
 }
 
 const statusColors: Record<DossierStatus, string> = {
-  'EN_COURS': 'bg-blue-500',
-  'TERMINE': 'bg-green-500',
-  'ANNULE': 'bg-red-500',
-}
+  EN_COURS: "bg-blue-500",
+  TERMINE: "bg-green-500",
+  ANNULE: "bg-red-500",
+};
 
 const statusLabels: Record<DossierStatus, string> = {
-  'EN_COURS': 'En cours',
-  'TERMINE': 'Terminé',
-  'ANNULE': 'Annulé',
-}
+  EN_COURS: "En cours",
+  TERMINE: "Terminé",
+  ANNULE: "Annulé",
+};
 
-export function DossiersList({ clientId, clientName, onDossierSelect }: DossiersListProps) {
-  const [isCreating, setIsCreating] = useState(false)
-  const [selectedDossierId, setSelectedDossierId] = useState<string | null>(null)
-  
+export function DossiersList({
+  clientId,
+  clientName,
+  onDossierSelect,
+}: DossiersListProps) {
+  const [isCreating, setIsCreating] = useState(false);
+  const [selectedDossierId, setSelectedDossierId] = useState<string | null>(
+    null
+  );
+
   const { data: dossiers, mutate } = useSWR(
     `/dossiers/${clientId}`,
     () => dossiersAPI.getByClient(clientId),
     {
       revalidateOnFocus: false,
     }
-  )
+  );
 
   // Logique de sélection automatique
   useEffect(() => {
@@ -60,52 +88,52 @@ export function DossiersList({ clientId, clientName, onDossierSelect }: Dossiers
         onDossierSelect(null);
       }
     }
-  }, [dossiers, selectedDossierId, onDossierSelect])
+  }, [dossiers, selectedDossierId, onDossierSelect]);
 
   const handleDossierSelection = (dossierId: string) => {
     setSelectedDossierId(dossierId);
-    const selectedDossier = dossiers?.find(d => d.id === dossierId);
+    const selectedDossier = dossiers?.find((d: Dossier) => d.id === dossierId);
     if (selectedDossier && onDossierSelect) {
       onDossierSelect(selectedDossier);
     }
-  }
+  };
 
   const handleCreateDossier = async () => {
     try {
-      setIsCreating(true)
-      const newDossier = await dossiersAPI.create({ clientId })
-      await mutate() // Refresh the list
-      
+      setIsCreating(true);
+      const newDossier = await dossiersAPI.create({ clientId });
+      await mutate(); // Refresh the list
+
       // Sélectionner automatiquement le nouveau dossier
       setSelectedDossierId(newDossier.id);
       if (onDossierSelect) {
         onDossierSelect(newDossier);
       }
-      
-      toast.success('Nouveau dossier créé avec succès')
+
+      toast.success("Nouveau dossier créé avec succès");
     } catch (error) {
-      console.error('Error creating dossier:', error)
-      toast.error('Erreur lors de la création du dossier')
+      console.error("Error creating dossier:", error);
+      toast.error("Erreur lors de la création du dossier");
     } finally {
-      setIsCreating(false)
+      setIsCreating(false);
     }
-  }
+  };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  }
+    return new Date(dateString).toLocaleDateString("fr-FR", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   const formatAmount = (amount?: number) => {
-    if (!amount) return '0,00 €'
-    return amount.toLocaleString('fr-FR', {
-      style: 'currency',
-      currency: 'EUR',
-    })
-  }
+    if (!amount) return "0,00 €";
+    return amount.toLocaleString("fr-FR", {
+      style: "currency",
+      currency: "EUR",
+    });
+  };
 
   return (
     <Card>
@@ -126,7 +154,7 @@ export function DossiersList({ clientId, clientName, onDossierSelect }: Dossiers
           </div>
           <Button onClick={handleCreateDossier} disabled={isCreating}>
             <Plus className="h-4 w-4 mr-2" />
-            {isCreating ? 'Création...' : 'Nouveau dossier'}
+            {isCreating ? "Création..." : "Nouveau dossier"}
           </Button>
         </div>
       </CardHeader>
@@ -142,7 +170,7 @@ export function DossiersList({ clientId, clientName, onDossierSelect }: Dossiers
             </p>
             <Button onClick={handleCreateDossier} disabled={isCreating}>
               <Plus className="h-4 w-4 mr-2" />
-              {isCreating ? 'Création...' : 'Créer le premier dossier'}
+              {isCreating ? "Création..." : "Créer le premier dossier"}
             </Button>
           </div>
         ) : (
@@ -153,24 +181,29 @@ export function DossiersList({ clientId, clientName, onDossierSelect }: Dossiers
                 <Label className="text-sm font-medium mb-3 block">
                   Sélectionner un dossier actif :
                 </Label>
-                <RadioGroup 
-                  value={selectedDossierId || ''} 
+                <RadioGroup
+                  value={selectedDossierId || ""}
                   onValueChange={handleDossierSelection}
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {dossiers.map((dossier: Dossier) => (
-                      <div key={dossier.id} className="flex items-center space-x-2">
+                      <div
+                        key={dossier.id}
+                        className="flex items-center space-x-2"
+                      >
                         <RadioGroupItem value={dossier.id} id={dossier.id} />
-                        <Label 
-                          htmlFor={dossier.id} 
+                        <Label
+                          htmlFor={dossier.id}
                           className="flex items-center gap-2 cursor-pointer flex-1"
                         >
                           <span className="font-medium">
                             #{dossier.id.slice(-8).toUpperCase()}
                           </span>
-                          <Badge 
+                          <Badge
                             variant="secondary"
-                            className={`text-white text-xs ${statusColors[dossier.status]}`}
+                            className={`text-white text-xs ${
+                              statusColors[dossier.status]
+                            }`}
                           >
                             {statusLabels[dossier.status]}
                           </Badge>
@@ -188,12 +221,12 @@ export function DossiersList({ clientId, clientName, onDossierSelect }: Dossiers
             {/* Liste des dossiers */}
             <div className="grid gap-4">
               {dossiers.map((dossier: Dossier) => (
-                <Card 
-                  key={dossier.id} 
+                <Card
+                  key={dossier.id}
                   className={`hover:shadow-md transition-all ${
-                    selectedDossierId === dossier.id 
-                      ? 'ring-2 ring-blue-500 bg-blue-50/50' 
-                      : ''
+                    selectedDossierId === dossier.id
+                      ? "ring-2 ring-blue-500 bg-blue-50/50"
+                      : ""
                   }`}
                 >
                   <CardContent className="p-4">
@@ -206,19 +239,24 @@ export function DossiersList({ clientId, clientName, onDossierSelect }: Dossiers
                           <h4 className="font-semibold">
                             Dossier #{dossier.id.slice(-8).toUpperCase()}
                           </h4>
-                          <Badge 
+                          <Badge
                             variant="secondary"
-                            className={`text-white ${statusColors[dossier.status]}`}
+                            className={`text-white ${
+                              statusColors[dossier.status]
+                            }`}
                           >
                             {statusLabels[dossier.status]}
                           </Badge>
                           {selectedDossierId === dossier.id && (
-                            <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+                            <Badge
+                              variant="outline"
+                              className="bg-blue-100 text-blue-700 border-blue-300"
+                            >
                               Actif
                             </Badge>
                           )}
                         </div>
-                        
+
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
                           <div className="flex items-center gap-1">
                             <Calendar className="h-4 w-4" />
@@ -230,7 +268,9 @@ export function DossiersList({ clientId, clientName, onDossierSelect }: Dossiers
                           </div>
                           <div className="flex items-center gap-1">
                             <CreditCard className="h-4 w-4" />
-                            <span>{dossier.paymentsCount || 0} paiement(s)</span>
+                            <span>
+                              {dossier.paymentsCount || 0} paiement(s)
+                            </span>
                           </div>
                           <div className="flex items-center gap-1">
                             <DollarSign className="h-4 w-4" />
@@ -238,17 +278,18 @@ export function DossiersList({ clientId, clientName, onDossierSelect }: Dossiers
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="flex gap-2">
-                        {dossiers.length > 1 && selectedDossierId !== dossier.id && (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleDossierSelection(dossier.id)}
-                          >
-                            Sélectionner
-                          </Button>
-                        )}
+                        {dossiers.length > 1 &&
+                          selectedDossierId !== dossier.id && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDossierSelection(dossier.id)}
+                            >
+                              Sélectionner
+                            </Button>
+                          )}
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button variant="outline" size="sm">
@@ -258,10 +299,12 @@ export function DossiersList({ clientId, clientName, onDossierSelect }: Dossiers
                           <DialogContent className="max-w-4xl">
                             <DialogHeader>
                               <DialogTitle>
-                                Détails du Dossier #{dossier.id.slice(-8).toUpperCase()}
+                                Détails du Dossier #
+                                {dossier.id.slice(-8).toUpperCase()}
                               </DialogTitle>
                               <DialogDescription>
-                                Consultez et gérez les services et paiements de ce dossier.
+                                Consultez et gérez les services et paiements de
+                                ce dossier.
                               </DialogDescription>
                             </DialogHeader>
                             <DossierDetails dossierId={dossier.id} />
@@ -277,83 +320,5 @@ export function DossiersList({ clientId, clientName, onDossierSelect }: Dossiers
         )}
       </CardContent>
     </Card>
-  )
-}
-
-function DossierDetails({ dossierId }: { dossierId: string }) {
-  const { data: dossier } = useSWR(
-    `/dossier/${dossierId}`,
-    () => dossiersAPI.getById(dossierId)
-  )
-
-  if (!dossier) {
-    return <div>Chargement...</div>
-  }
-
-  return (
-    <Tabs defaultValue="services" className="w-full">
-      <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="services">Services</TabsTrigger>
-        <TabsTrigger value="payments">Paiements</TabsTrigger>
-      </TabsList>
-      
-      <TabsContent value="services" className="mt-4">
-        <div className="space-y-2">
-          {dossier.serviceItems && dossier.serviceItems.length > 0 ? (
-            dossier.serviceItems.map((service: any) => (
-              <Card key={service.id}>
-                <CardContent className="p-3">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-medium">{service.serviceType}</p>
-                      <p className="text-sm text-gray-600">
-                        Quantité: {service.quantity} × {parseFloat(service.unitPrice).toFixed(2)}€
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold">
-                        {(service.quantity * parseFloat(service.unitPrice)).toFixed(2)}€
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          ) : (
-            <p className="text-gray-500 text-center py-4">Aucun service dans ce dossier</p>
-          )}
-        </div>
-      </TabsContent>
-      
-      <TabsContent value="payments" className="mt-4">
-        <div className="space-y-2">
-          {dossier.payments && dossier.payments.length > 0 ? (
-            dossier.payments.map((payment: any) => (
-              <Card key={payment.id}>
-                <CardContent className="p-3">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-medium">
-                        Paiement {payment.paymentModality}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {payment.installments?.length || 0} échéance(s)
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold">
-                        {parseFloat(payment.totalAmount).toFixed(2)}€
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          ) : (
-            <p className="text-gray-500 text-center py-4">Aucun paiement dans ce dossier</p>
-          )}
-        </div>
-      </TabsContent>
-    </Tabs>
-  )
+  );
 }

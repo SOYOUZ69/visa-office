@@ -123,35 +123,6 @@ export const clientsAPI = {
     const response = await api.delete(`/api/v1/family-members/${id}`);
     return response.data;
   },
-  assignEmployee: async (
-    clientId: string,
-    employeeId: string,
-    role?: string
-  ) => {
-    const response = await api.post(
-      `/api/v1/clients/${clientId}/assign-employee`,
-      {
-        employeeId,
-        role,
-      }
-    );
-    return response.data;
-  },
-  unassignEmployee: async (clientId: string, employeeId: string) => {
-    const response = await api.delete(
-      `/api/v1/clients/${clientId}/assign-employee`,
-      {
-        data: { employeeId },
-      }
-    );
-    return response.data;
-  },
-  getAssignedEmployees: async (clientId: string) => {
-    const response = await api.get(
-      `/api/v1/clients/${clientId}/assigned-employees`
-    );
-    return response.data;
-  },
 };
 
 // Attachments API
@@ -191,7 +162,7 @@ export const attachmentsAPI = {
 // Dossiers API
 export const dossiersAPI = {
   getAll: async () => {
-    const response = await api.get('/api/v1/dossiers');
+    const response = await api.get("/api/v1/dossiers");
     return response.data;
   },
   getByClient: async (clientId: string) => {
@@ -203,7 +174,7 @@ export const dossiersAPI = {
     return response.data;
   },
   create: async (data: any) => {
-    const response = await api.post('/api/v1/dossiers', data);
+    const response = await api.post("/api/v1/dossiers", data);
     return response.data;
   },
   update: async (id: string, data: any) => {
@@ -212,6 +183,35 @@ export const dossiersAPI = {
   },
   delete: async (id: string) => {
     const response = await api.delete(`/api/v1/dossiers/${id}`);
+    return response.data;
+  },
+  assignEmployee: async (
+    dossierId: string,
+    employeeId: string,
+    role?: string
+  ) => {
+    const response = await api.post(
+      `/api/v1/dossiers/${dossierId}/assign-employee`,
+      {
+        employeeId,
+        role,
+      }
+    );
+    return response.data;
+  },
+  unassignEmployee: async (dossierId: string, employeeId: string) => {
+    const response = await api.delete(
+      `/api/v1/dossiers/${dossierId}/assign-employee`,
+      {
+        data: { employeeId },
+      }
+    );
+    return response.data;
+  },
+  getAssignedEmployees: async (dossierId: string) => {
+    const response = await api.get(
+      `/api/v1/dossiers/${dossierId}/assigned-employees`
+    );
     return response.data;
   },
 };
@@ -227,11 +227,11 @@ export const servicesAPI = {
     return response.data;
   },
   createService: async (data: any) => {
-    const response = await api.post('/api/v1/services', data);
+    const response = await api.post("/api/v1/services", data);
     return response.data;
   },
   createManyServices: async (data: any) => {
-    const response = await api.post('/api/v1/services/bulk', data);
+    const response = await api.post("/api/v1/services/bulk", data);
     return response.data;
   },
   updateService: async (serviceId: string, data: any) => {
@@ -263,16 +263,12 @@ export const servicesAPI = {
 
 // Payments API
 export const paymentsAPI = {
-  getClientPayments: async (clientId: string) => {
-    const response = await api.get(`/api/v1/clients/${clientId}/payments`);
-    return response.data;
-  },
   getDossierPayments: async (dossierId: string) => {
     const response = await api.get(`/api/v1/dossiers/${dossierId}/payments`);
     return response.data;
   },
   createPayment: async (data: any) => {
-    const response = await api.post('/api/v1/payments', data);
+    const response = await api.post("/api/v1/payments", data);
     return response.data;
   },
   updatePayment: async (paymentId: string, data: any) => {
@@ -296,9 +292,9 @@ export const paymentsAPI = {
     const response = await api.get("/api/v1/payments/statistics");
     return response.data;
   },
-  getUnprocessedServices: async (clientId: string) => {
+  getUnprocessedServices: async (dossierId: string) => {
     const response = await api.get(
-      `/api/v1/clients/${clientId}/unprocessed-services`
+      `/api/v1/dossiers/${dossierId}/unprocessed-services`
     );
     return response.data;
   },

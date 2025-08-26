@@ -589,19 +589,7 @@ export function ClientForm({
         </CardContent>
       </Card>
 
-      {/* Services Section */}
-      {client?.id ? (
-        <ServicesSection clientId={client.id} />
-      ) : (
-        <ServicesSection isNewClient={true} />
-      )}
 
-      {/* Payment Section */}
-      {client?.id ? (
-        <PaymentSection clientId={client.id} />
-      ) : (
-        <PaymentSection isNewClient={true} />
-      )}
 
       <div className="flex justify-end space-x-4">
         <Button type="button" variant="outline" onClick={() => router.back()}>

@@ -62,6 +62,7 @@ import {
   PaymentFormData,
   PaymentFormSchema,
 } from "@/lib/schema/paymentFormSchema";
+import useSWR, { mutate } from "swr";
 
 // Validation Schema
 
@@ -70,6 +71,7 @@ interface PaymentSectionProps {
   dossierId?: string;
   dossierStatus?: string;
   isNewClient?: boolean;
+  totalAmount?: number;
 }
 
 export function PaymentSection({
@@ -77,9 +79,8 @@ export function PaymentSection({
   dossierId,
   dossierStatus,
   isNewClient = false,
+  totalAmount = 0,
 }: PaymentSectionProps) {
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [services, setServices] = useState<ServiceItem[]>([]);
   const [unprocessedServices, setUnprocessedServices] =
     useState<UnprocessedServicesResponse | null>(null);
   const [paymentOptions, setPaymentOptions] = useState<PaymentOption[]>([]);
@@ -92,42 +93,40 @@ export function PaymentSection({
   const [isEditing, setIsEditing] = useState(false);
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const [showUnprocessedServices, setShowUnprocessedServices] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [paymentsLoading, setPaymentsLoading] = useState(true);
-  const [servicesLoading, setServicesLoading] = useState(true);
+
   const { user } = useAuth();
 
   // Use SWR to load payments for this dossier
-  // const { data: payments = [], isLoading: paymentsLoading } = useSWR(
-  //   dossierId ? `/dossiers/${dossierId}/payments` : null,
-  //   () => dossierId ? paymentsAPI.getDossierPayments(dossierId) : null,
-  //   {
-  //     revalidateOnFocus: false,
-  //   }
-  // );
+  const { data: payments = [], isLoading: paymentsLoading } = useSWR(
+    dossierId ? `/dossiers/${dossierId}/payments` : null,
+    () => (dossierId ? paymentsAPI.getDossierPayments(dossierId) : null),
+    {
+      revalidateOnFocus: false,
+    }
+  );
 
-  // // Use SWR to load services for this dossier
-  // const { data: services = [] } = useSWR(
-  //   dossierId ? `/dossiers/${dossierId}/services` : null,
-  //   () => dossierId ? servicesAPI.getDossierServices(dossierId) : null,
-  //   {
-  //     revalidateOnFocus: false,
-  //   }
-  // );
+  // Use SWR to load services for this dossier
+  const { data: services = [] } = useSWR(
+    dossierId ? `/dossiers/${dossierId}/services` : null,
+    () => (dossierId ? servicesAPI.getDossierServices(dossierId) : null),
+    {
+      revalidateOnFocus: false,
+    }
+  );
 
-  // // Helper function to invalidate relevant caches
-  // const invalidateRelatedCaches = () => {
-  //   if (dossierId && clientId) {
-  //     // Invalidate dossier payments cache
-  //     mutate(`/dossiers/${dossierId}/payments`);
-  //     // Invalidate dossier services cache
-  //     mutate(`/dossiers/${dossierId}/services`);
-  //     // Invalidate dossiers list cache (for counters)
-  //     mutate(`/dossiers/${clientId}`);
-  //     // Also invalidate by ID for good measure
-  //     mutate(`/dossier/${dossierId}`);
-  //   }
-  // };
+  // Helper function to invalidate relevant caches
+  const invalidateRelatedCaches = () => {
+    if (dossierId && clientId) {
+      // Invalidate dossier payments cache
+      mutate(`/dossiers/${dossierId}/payments`);
+      // Invalidate dossier services cache
+      mutate(`/dossiers/${dossierId}/services`);
+      // Invalidate dossiers list cache (for counters)
+      mutate(`/dossiers/${clientId}`);
+      // Also invalidate by ID for good measure
+      mutate(`/dossier/${dossierId}`);
+    }
+  };
 
   const form = useForm<PaymentFormData>({
     resolver: zodResolver(PaymentFormSchema),
@@ -161,18 +160,21 @@ export function PaymentSection({
   const [showNewPaymentForm, setShowNewPaymentForm] = useState(false);
   const shouldShowConfigForm =
     isNewClient || payments.length === 0 || isEditing || showNewPaymentForm;
+
+  // Check if there are unprocessed services available for payment
+  const hasUnprocessedServices =
+    unprocessedServices && unprocessedServices.serviceCount > 0;
+
+  // Check if there's an amount to be paid (from backend calculation)
+  const hasAmountToPay = totalAmount > 0;
   const currentPayment = editingPaymentId
-    ? payments.find((p) => p.id === editingPaymentId)
+    ? payments.find((p: Payment) => p.id === editingPaymentId)
     : null;
 
   // Determine the correct amount to use for payment calculations
   const getPaymentAmount = () => {
-    // If there are unprocessed services, use their total amount
-    if (unprocessedServices && unprocessedServices.totalAmount > 0) {
-      return unprocessedServices.totalAmount;
-    }
-    // Otherwise use the services total
-    return servicesTotal;
+    // Use the backend-calculated total amount
+    return totalAmount;
   };
 
   // Add a button to show the form for adding new payments
@@ -221,7 +223,7 @@ export function PaymentSection({
 
   // Calculate services total when services change
   useEffect(() => {
-    const total = services.reduce((sum, service) => {
+    const total = services.reduce((sum: number, service: ServiceItem) => {
       return sum + service.quantity * service.unitPrice;
     }, 0);
     setServicesTotal(total);
@@ -362,7 +364,7 @@ export function PaymentSection({
 
   const loadData = async () => {
     if (!clientId) return;
-    setLoading(true);
+
     try {
       if (dossierId) {
         // Load data from the specific dossier
@@ -380,8 +382,7 @@ export function PaymentSection({
           metaAPI.getPaymentModalities(),
         ]);
         setUnprocessedServices(unprocessedData);
-        setPayments(paymentsData);
-        setServices(servicesData);
+
         setPaymentOptions(optionsData);
         setPaymentModalities(modalitiesData);
       } else {
@@ -391,16 +392,12 @@ export function PaymentSection({
           metaAPI.getPaymentModalities(),
         ]);
 
-        setPayments([]);
-        setServices([]);
         setPaymentOptions(optionsData);
         setPaymentModalities(modalitiesData);
       }
     } catch (error) {
       console.error("Failed to load payment data:", error);
       toast.error("Failed to load payment data");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -432,8 +429,7 @@ export function PaymentSection({
   // Function to refresh services data
   const refreshServices = async () => {
     try {
-      const servicesData = await servicesAPI.getClientServices(clientId!);
-      setServices(servicesData);
+      await servicesAPI.getClientServices(clientId!);
       await loadUnprocessedServices();
     } catch (error) {
       console.error("Failed to refresh services:", error);
@@ -796,23 +792,8 @@ export function PaymentSection({
     resetPaymentForm();
   };
 
-  if (paymentsLoading && !isNewClient) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            Payment
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-4">Loading payment data...</div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (isNewClient) {
+  // Early return if no dossier is selected and not creating a new client
+  if (!dossierId && !isNewClient) {
     return (
       <Card>
         <CardHeader>
@@ -821,20 +802,20 @@ export function PaymentSection({
             Payment
           </CardTitle>
           <CardDescription>
-            Payment options will be available after the client is created and
-            services are added
+            Select a dossier to configure payment options
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center py-4 text-gray-500">
-            Please save the client and add services first
+            No dossier selected. Please select a dossier to configure payments.
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  if (!dossierId) {
+  // Check if there's no amount to pay and no existing payments
+  if (!hasAmountToPay && payments.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -842,85 +823,12 @@ export function PaymentSection({
             <CreditCard className="h-5 w-5" />
             Payment
           </CardTitle>
-          <CardDescription>
-            Please select a dossier to manage payments
-          </CardDescription>
+          <CardDescription>No payment to be done</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center py-4 text-gray-500">
-            No dossier selected. Please select a dossier from the list above to
-            view and manage payments.
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (servicesTotal === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            Payment
-          </CardTitle>
-          <CardDescription>
-            Add services first to configure payment options
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-4 text-gray-500">
-            No services found. Please add services to configure payments.
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Check if there are no unprocessed services but there are existing payments
-  if (
-    unprocessedServices &&
-    unprocessedServices.serviceCount === 0 &&
-    payments.length > 0
-  ) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            Payment
-          </CardTitle>
-          <CardDescription>All services have been processed</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-4 text-gray-500">
-            All services have been processed and payments have been configured.
-            No additional payments can be added at this time.
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Check if there are no unprocessed services and no existing payments
-  if (
-    unprocessedServices &&
-    unprocessedServices.serviceCount === 0 &&
-    payments.length === 0
-  ) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            Payment
-          </CardTitle>
-          <CardDescription>All services have been processed</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-4 text-gray-500">
-            All services have been processed. No payments are needed at this
-            time.
+            The total amount for this dossier is 0. No payments are needed at
+            this time.
           </div>
         </CardContent>
       </Card>
@@ -947,9 +855,7 @@ export function PaymentSection({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-blue-900">
-                {unprocessedServices && unprocessedServices.totalAmount > 0
-                  ? "Unprocessed Services Total:"
-                  : "Total of Services:"}
+                {hasAmountToPay ? "Total Amount to be Paid:" : "Total Amount:"}
               </span>
               {isAdmin && (
                 <Button
@@ -965,84 +871,47 @@ export function PaymentSection({
               )}
             </div>
             <span className="text-lg font-bold text-blue-900">
-              {formatCurrency(getPaymentAmount())}
+              {formatCurrency(totalAmount)}
             </span>
           </div>
+          {hasAmountToPay && (
+            <div className="mt-2 text-xs text-blue-700">
+              Payment will be calculated from unprocessed services
+            </div>
+          )}
         </div>
 
-        {/* Unprocessed Services Section */}
-        {unprocessedServices && unprocessedServices.serviceCount > 0 && (
-          <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+        {/* Total Amount Section */}
+        {hasAmountToPay && (
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Package className="h-5 w-5 text-orange-600" />
-                <span className="text-sm font-medium text-orange-900">
-                  Unprocessed Services Available
+                <DollarSign className="h-5 w-5 text-blue-600" />
+                <span className="text-sm font-medium text-blue-900">
+                  Payment Required
                 </span>
                 <Badge
                   variant="secondary"
-                  className="bg-orange-100 text-orange-800"
+                  className="bg-blue-100 text-blue-800"
                 >
-                  {unprocessedServices.serviceCount} services
+                  {formatCurrency(totalAmount)}
                 </Badge>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setShowUnprocessedServices(!showUnprocessedServices)
-                }
-                className="text-orange-600 border-orange-300 hover:bg-orange-100"
-              >
-                {showUnprocessedServices ? "Hide Details" : "Show Details"}
-              </Button>
             </div>
 
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-orange-800">
-                Total unprocessed amount:
+              <span className="text-sm text-blue-800">
+                Total amount to be paid:
               </span>
-              <span className="text-lg font-bold text-orange-900">
-                {formatCurrency(unprocessedServices.totalAmount)}
+              <span className="text-lg font-bold text-blue-900">
+                {formatCurrency(totalAmount)}
               </span>
             </div>
 
-            {showUnprocessedServices && (
-              <div className="mt-4">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Service Type</TableHead>
-                      <TableHead>Quantity</TableHead>
-                      <TableHead>Unit Price</TableHead>
-                      <TableHead>Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {unprocessedServices.services.map((service) => (
-                      <TableRow key={service.id}>
-                        <TableCell className="font-medium">
-                          {service.serviceType.replace("_", " ")}
-                        </TableCell>
-                        <TableCell>{service.quantity}</TableCell>
-                        <TableCell>
-                          {formatCurrency(service.unitPrice)}
-                        </TableCell>
-                        <TableCell>
-                          {formatCurrency(service.quantity * service.unitPrice)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-
-            <div className="mt-4 p-3 bg-orange-100 rounded-lg">
+            <div className="mt-4 p-3 bg-blue-100 rounded-lg">
               <div className="flex items-start gap-2">
-                <AlertCircle className="h-4 w-4 text-orange-600 mt-0.5" />
-                <div className="text-sm text-orange-800">
+                <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5" />
+                <div className="text-sm text-blue-800">
                   <p className="font-medium">
                     Payment will be calculated from unprocessed services
                   </p>
@@ -1056,434 +925,443 @@ export function PaymentSection({
           </div>
         )}
 
-        {isAdmin && (shouldShowConfigForm || showNewPaymentForm) && (
-          <form className="space-y-6">
-            {/* Edit Mode Header */}
-            {isEditing && (
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-blue-900">
-                      Edit Payment Configuration
-                    </h3>
-                    <p className="text-sm text-blue-700">
-                      Modify the payment settings below
-                    </p>
+        {isAdmin &&
+          hasAmountToPay &&
+          (shouldShowConfigForm || showNewPaymentForm) && (
+            <form className="space-y-6">
+              {/* Edit Mode Header */}
+              {isEditing && (
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-blue-900">
+                        Edit Payment Configuration
+                      </h3>
+                      <p className="text-sm text-blue-700">
+                        Modify the payment settings below
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={cancelEditing}
+                      className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                    >
+                      Cancel Edit
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={cancelEditing}
-                    className="text-blue-600 border-blue-300 hover:bg-blue-50"
-                  >
-                    Cancel Edit
-                  </Button>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* New Payment Header */}
-            {showNewPaymentForm && !isEditing && (
-              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-green-900">
-                      Add New Payment
-                    </h3>
-                    <p className="text-sm text-green-700">
-                      Configure payment for new services
-                    </p>
+              {/* New Payment Header */}
+              {showNewPaymentForm && !isEditing && (
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-green-900">
+                        Add New Payment
+                      </h3>
+                      <p className="text-sm text-green-700">
+                        Configure payment for new services
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={cancelEditing}
+                      className="text-green-600 border-green-300 hover:bg-green-50"
+                    >
+                      Cancel
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={cancelEditing}
-                    className="text-green-600 border-green-300 hover:bg-green-50"
-                  >
-                    Cancel
-                  </Button>
                 </div>
-              </div>
-            )}
-            {/* Payment Options - Only for FULL_PAYMENT */}
-            {watchedPaymentModality === "FULL_PAYMENT" && (
+              )}
+              {/* Payment Options - Only for FULL_PAYMENT */}
+              {watchedPaymentModality === "FULL_PAYMENT" && (
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">
+                    Payment Option
+                  </Label>
+                  <RadioGroup
+                    value={form.watch("paymentOption") || ""}
+                    onValueChange={(value) =>
+                      form.setValue("paymentOption", value as PaymentOption)
+                    }
+                    className="grid grid-cols-2 gap-4"
+                  >
+                    {paymentOptions.map((option) => (
+                      <div key={option} className="flex items-center space-x-2">
+                        <RadioGroupItem value={option} id={option} />
+                        <Label htmlFor={option}>
+                          {getPaymentOptionLabel(option)}
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                </div>
+              )}
+
+              {/* Payment Modalities */}
               <div className="space-y-3">
                 <Label className="text-base font-semibold">
-                  Payment Option
+                  Payment Modality
                 </Label>
                 <RadioGroup
-                  value={form.watch("paymentOption") || ""}
+                  value={form.watch("paymentModality")}
                   onValueChange={(value) =>
-                    form.setValue("paymentOption", value as PaymentOption)
+                    form.setValue("paymentModality", value as PaymentModality)
                   }
-                  className="grid grid-cols-2 gap-4"
+                  className="space-y-2"
                 >
-                  {paymentOptions.map((option) => (
-                    <div key={option} className="flex items-center space-x-2">
-                      <RadioGroupItem value={option} id={option} />
-                      <Label htmlFor={option}>
-                        {getPaymentOptionLabel(option)}
+                  {paymentModalities.map((modality) => (
+                    <div key={modality} className="flex items-center space-x-2">
+                      <RadioGroupItem value={modality} id={modality} />
+                      <Label htmlFor={modality}>
+                        {getPaymentModalityLabel(modality)}
                       </Label>
                     </div>
                   ))}
                 </RadioGroup>
               </div>
-            )}
 
-            {/* Payment Modalities */}
-            <div className="space-y-3">
-              <Label className="text-base font-semibold">
-                Payment Modality
-              </Label>
-              <RadioGroup
-                value={form.watch("paymentModality")}
-                onValueChange={(value) =>
-                  form.setValue("paymentModality", value as PaymentModality)
-                }
-                className="space-y-2"
-              >
-                {paymentModalities.map((modality) => (
-                  <div key={modality} className="flex items-center space-x-2">
-                    <RadioGroupItem value={modality} id={modality} />
-                    <Label htmlFor={modality}>
-                      {getPaymentModalityLabel(modality)}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </div>
-
-            {/* Milestone Payments - Number of Installments */}
-            {watchedPaymentModality === "MILESTONE_PAYMENTS" && (
-              <div className="space-y-3">
-                <Label
-                  htmlFor="installments-count"
-                  className="text-base font-semibold"
-                >
-                  Number of Installments
-                </Label>
-                <Select
-                  value={numberOfInstallments.toString()}
-                  onValueChange={(value) =>
-                    updateNumberOfInstallments(parseInt(value))
-                  }
-                >
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[2, 3, 4, 5, 6].map((num) => (
-                      <SelectItem key={num} value={num.toString()}>
-                        {num}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {/* Transfer Code - Only for FULL_PAYMENT */}
-            {watchedPaymentModality === "FULL_PAYMENT" &&
-              isTransferCodeRequired() && (
-                <div className="space-y-2">
+              {/* Milestone Payments - Number of Installments */}
+              {watchedPaymentModality === "MILESTONE_PAYMENTS" && (
+                <div className="space-y-3">
                   <Label
-                    htmlFor="transferCode"
-                    className="text-base font-semibold text-red-600"
+                    htmlFor="installments-count"
+                    className="text-base font-semibold"
                   >
-                    Transfer Code (Required - Due Today)
+                    Number of Installments
                   </Label>
-                  <Input
-                    id="transferCode"
-                    placeholder="Enter transfer code"
-                    {...form.register("transferCode")}
-                    className="border-red-300 focus:border-red-500"
-                  />
+                  <Select
+                    value={numberOfInstallments.toString()}
+                    onValueChange={(value) =>
+                      updateNumberOfInstallments(parseInt(value))
+                    }
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[2, 3, 4, 5, 6].map((num) => (
+                        <SelectItem key={num} value={num.toString()}>
+                          {num}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
 
-            {/* Payment Schedule Table */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-base font-semibold">
-                  Payment Schedule
-                </Label>
-                {watchedPaymentModality === "MILESTONE_PAYMENTS" && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addInstallment}
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Installment
-                  </Button>
+              {/* Transfer Code - Only for FULL_PAYMENT */}
+              {watchedPaymentModality === "FULL_PAYMENT" &&
+                isTransferCodeRequired() && (
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="transferCode"
+                      className="text-base font-semibold text-red-600"
+                    >
+                      Transfer Code (Required - Due Today)
+                    </Label>
+                    <Input
+                      id="transferCode"
+                      placeholder="Enter transfer code"
+                      {...form.register("transferCode")}
+                      className="border-red-300 focus:border-red-500"
+                    />
+                  </div>
                 )}
-              </div>
 
-              <div className="border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Percentage</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Due Date</TableHead>
-                      {(watchedPaymentModality === "SIXTY_FORTY" ||
-                        watchedPaymentModality === "MILESTONE_PAYMENTS") && (
-                        <TableHead>Payment Option</TableHead>
-                      )}
-                      {(watchedPaymentModality === "SIXTY_FORTY" ||
-                        watchedPaymentModality === "MILESTONE_PAYMENTS") && (
-                        <TableHead>Transfer Code</TableHead>
-                      )}
-                      <TableHead>Status</TableHead>
-                      {watchedPaymentModality === "MILESTONE_PAYMENTS" && (
-                        <TableHead className="w-20">Actions</TableHead>
-                      )}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {fields.map((field, index) => (
-                      <TableRow key={field.id}>
-                        <TableCell>
-                          {watchedPaymentModality === "MILESTONE_PAYMENTS" ? (
-                            <Input
-                              {...form.register(
-                                `installments.${index}.description`
-                              )}
-                              placeholder="Description"
-                            />
-                          ) : (
-                            <span>
-                              {form.watch(`installments.${index}.description`)}
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {watchedPaymentModality === "MILESTONE_PAYMENTS" ? (
-                            <div className="flex items-center gap-1">
+              {/* Payment Schedule Table */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-semibold">
+                    Payment Schedule
+                  </Label>
+                  {watchedPaymentModality === "MILESTONE_PAYMENTS" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addInstallment}
+                      className="flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Installment
+                    </Button>
+                  )}
+                </div>
+
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Percentage</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Due Date</TableHead>
+                        {(watchedPaymentModality === "SIXTY_FORTY" ||
+                          watchedPaymentModality === "MILESTONE_PAYMENTS") && (
+                          <TableHead>Payment Option</TableHead>
+                        )}
+                        {(watchedPaymentModality === "SIXTY_FORTY" ||
+                          watchedPaymentModality === "MILESTONE_PAYMENTS") && (
+                          <TableHead>Transfer Code</TableHead>
+                        )}
+                        <TableHead>Status</TableHead>
+                        {watchedPaymentModality === "MILESTONE_PAYMENTS" && (
+                          <TableHead className="w-20">Actions</TableHead>
+                        )}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {fields.map((field, index) => (
+                        <TableRow key={field.id}>
+                          <TableCell>
+                            {watchedPaymentModality === "MILESTONE_PAYMENTS" ? (
                               <Input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                max="100"
                                 {...form.register(
-                                  `installments.${index}.percentage`,
-                                  {
-                                    valueAsNumber: true,
-                                    onChange: (e) => {
-                                      const value =
-                                        parseFloat(e.target.value) || 0;
-                                      form.setValue(
-                                        `installments.${index}.percentage`,
-                                        value
-                                      );
-                                      // Trigger recalculation of amount
-                                      const amount =
-                                        (servicesTotal * value) / 100;
-                                      form.setValue(
-                                        `installments.${index}.amount`,
-                                        amount
-                                      );
-                                    },
-                                  }
+                                  `installments.${index}.description`
                                 )}
-                                className="w-20"
+                                placeholder="Description"
                               />
-                              <span>%</span>
-                            </div>
-                          ) : (
-                            <span>
-                              {form.watch(`installments.${index}.percentage`)}%
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {formatCurrency(
-                            form.watch(`installments.${index}.amount`)
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="date"
-                            {...form.register(`installments.${index}.dueDate`)}
-                            className="w-40"
-                          />
-                        </TableCell>
-
-                        {/* Payment Option for SIXTY_FORTY and MILESTONE_PAYMENTS */}
-                        {(watchedPaymentModality === "SIXTY_FORTY" ||
-                          watchedPaymentModality === "MILESTONE_PAYMENTS") && (
-                          <TableCell>
-                            <Select
-                              value={
-                                form.watch(
-                                  `installments.${index}.paymentOption`
-                                ) || ""
-                              }
-                              onValueChange={(value) =>
-                                form.setValue(
-                                  `installments.${index}.paymentOption`,
-                                  value as PaymentOption
-                                )
-                              }
-                            >
-                              <SelectTrigger className="w-32">
-                                <SelectValue placeholder="Select" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {paymentOptions.map((option) => (
-                                  <SelectItem key={option} value={option}>
-                                    {getPaymentOptionLabel(option)}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            ) : (
+                              <span>
+                                {form.watch(
+                                  `installments.${index}.description`
+                                )}
+                              </span>
+                            )}
                           </TableCell>
-                        )}
-
-                        {/* Transfer Code for SIXTY_FORTY and MILESTONE_PAYMENTS */}
-                        {(watchedPaymentModality === "SIXTY_FORTY" ||
-                          watchedPaymentModality === "MILESTONE_PAYMENTS") && (
+                          <TableCell>
+                            {watchedPaymentModality === "MILESTONE_PAYMENTS" ? (
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  max="100"
+                                  {...form.register(
+                                    `installments.${index}.percentage`,
+                                    {
+                                      valueAsNumber: true,
+                                      onChange: (e) => {
+                                        const value =
+                                          parseFloat(e.target.value) || 0;
+                                        form.setValue(
+                                          `installments.${index}.percentage`,
+                                          value
+                                        );
+                                        // Trigger recalculation of amount
+                                        const amount =
+                                          (servicesTotal * value) / 100;
+                                        form.setValue(
+                                          `installments.${index}.amount`,
+                                          amount
+                                        );
+                                      },
+                                    }
+                                  )}
+                                  className="w-20"
+                                />
+                                <span>%</span>
+                              </div>
+                            ) : (
+                              <span>
+                                {form.watch(`installments.${index}.percentage`)}
+                                %
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {formatCurrency(
+                              form.watch(`installments.${index}.amount`)
+                            )}
+                          </TableCell>
                           <TableCell>
                             <Input
-                              placeholder={
-                                isTransferCodeRequired(index)
-                                  ? "Required"
-                                  : "Optional"
-                              }
+                              type="date"
                               {...form.register(
-                                `installments.${index}.transferCode`
+                                `installments.${index}.dueDate`
                               )}
-                              className={
-                                isTransferCodeRequired(index)
-                                  ? "border-red-300 focus:border-red-500"
-                                  : ""
-                              }
-                              disabled={
-                                form.watch(
-                                  `installments.${index}.paymentOption`
-                                ) !== "BANK_TRANSFER"
-                              }
+                              className="w-40"
                             />
                           </TableCell>
-                        )}
 
-                        {/* Status Column */}
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              checked={
-                                form.watch(`installments.${index}.status`) ===
-                                "PAID"
-                              }
-                              onCheckedChange={(checked) => {
-                                form.setValue(
-                                  `installments.${index}.status`,
-                                  checked ? "PAID" : "PENDING"
-                                );
-                              }}
-                            />
-                            <span
-                              className={`text-sm ${
-                                form.watch(`installments.${index}.status`) ===
-                                "PAID"
-                                  ? "text-green-600 font-medium"
-                                  : "text-orange-600"
-                              }`}
-                            >
-                              {getStatusLabel(
+                          {/* Payment Option for SIXTY_FORTY and MILESTONE_PAYMENTS */}
+                          {(watchedPaymentModality === "SIXTY_FORTY" ||
+                            watchedPaymentModality ===
+                              "MILESTONE_PAYMENTS") && (
+                            <TableCell>
+                              <Select
+                                value={
+                                  form.watch(
+                                    `installments.${index}.paymentOption`
+                                  ) || ""
+                                }
+                                onValueChange={(value) =>
+                                  form.setValue(
+                                    `installments.${index}.paymentOption`,
+                                    value as PaymentOption
+                                  )
+                                }
+                              >
+                                <SelectTrigger className="w-32">
+                                  <SelectValue placeholder="Select" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {paymentOptions.map((option) => (
+                                    <SelectItem key={option} value={option}>
+                                      {getPaymentOptionLabel(option)}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                          )}
+
+                          {/* Transfer Code for SIXTY_FORTY and MILESTONE_PAYMENTS */}
+                          {(watchedPaymentModality === "SIXTY_FORTY" ||
+                            watchedPaymentModality ===
+                              "MILESTONE_PAYMENTS") && (
+                            <TableCell>
+                              <Input
+                                placeholder={
+                                  isTransferCodeRequired(index)
+                                    ? "Required"
+                                    : "Optional"
+                                }
+                                {...form.register(
+                                  `installments.${index}.transferCode`
+                                )}
+                                className={
+                                  isTransferCodeRequired(index)
+                                    ? "border-red-300 focus:border-red-500"
+                                    : ""
+                                }
+                                disabled={
+                                  form.watch(
+                                    `installments.${index}.paymentOption`
+                                  ) !== "BANK_TRANSFER"
+                                }
+                              />
+                            </TableCell>
+                          )}
+
+                          {/* Status Column */}
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                checked={
+                                  form.watch(`installments.${index}.status`) ===
+                                  "PAID"
+                                }
+                                onCheckedChange={(checked) => {
+                                  form.setValue(
+                                    `installments.${index}.status`,
+                                    checked ? "PAID" : "PENDING"
+                                  );
+                                }}
+                              />
+                              <span
+                                className={`text-sm ${
+                                  form.watch(`installments.${index}.status`) ===
+                                  "PAID"
+                                    ? "text-green-600 font-medium"
+                                    : "text-orange-600"
+                                }`}
+                              >
+                                {getStatusLabel(
+                                  form.watch(
+                                    `installments.${index}.status`
+                                  ) as InstallmentStatus
+                                )}
+                              </span>
+                              {getStatusIcon(
                                 form.watch(
                                   `installments.${index}.status`
                                 ) as InstallmentStatus
                               )}
-                            </span>
-                            {getStatusIcon(
-                              form.watch(
-                                `installments.${index}.status`
-                              ) as InstallmentStatus
-                            )}
-                          </div>
-                        </TableCell>
-
-                        {watchedPaymentModality === "MILESTONE_PAYMENTS" && (
-                          <TableCell>
-                            {fields.length > 1 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeInstallment(index)}
-                                className="text-red-600 hover:text-red-800"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
+                            </div>
                           </TableCell>
+
+                          {watchedPaymentModality === "MILESTONE_PAYMENTS" && (
+                            <TableCell>
+                              {fields.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeInstallment(index)}
+                                  className="text-red-600 hover:text-red-800"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                      <TableRow className="bg-gray-50">
+                        <TableCell className="font-semibold">Total</TableCell>
+                        <TableCell className="font-semibold">
+                          {calculateTotalPercentage().toFixed(2)}%
+                        </TableCell>
+                        <TableCell className="font-semibold">
+                          {formatCurrency(getPaymentAmount())}
+                        </TableCell>
+                        <TableCell></TableCell>
+                        {(watchedPaymentModality === "SIXTY_FORTY" ||
+                          watchedPaymentModality === "MILESTONE_PAYMENTS") && (
+                          <>
+                            <TableCell></TableCell>
+                            <TableCell></TableCell>
+                          </>
+                        )}
+                        <TableCell></TableCell>
+                        {watchedPaymentModality === "MILESTONE_PAYMENTS" && (
+                          <TableCell></TableCell>
                         )}
                       </TableRow>
-                    ))}
-                    <TableRow className="bg-gray-50">
-                      <TableCell className="font-semibold">Total</TableCell>
-                      <TableCell className="font-semibold">
-                        {calculateTotalPercentage().toFixed(2)}%
-                      </TableCell>
-                      <TableCell className="font-semibold">
-                        {formatCurrency(getPaymentAmount())}
-                      </TableCell>
-                      <TableCell></TableCell>
-                      {(watchedPaymentModality === "SIXTY_FORTY" ||
-                        watchedPaymentModality === "MILESTONE_PAYMENTS") && (
-                        <>
-                          <TableCell></TableCell>
-                          <TableCell></TableCell>
-                        </>
-                      )}
-                      <TableCell></TableCell>
-                      {watchedPaymentModality === "MILESTONE_PAYMENTS" && (
-                        <TableCell></TableCell>
-                      )}
-                    </TableRow>
-                  </TableBody>
-                </Table>
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {Math.abs(calculateTotalPercentage() - 100) > 0.01 && (
+                  <p className="text-sm text-red-600">
+                    ⚠️ Percentages must sum to exactly 100%. Current total:{" "}
+                    {calculateTotalPercentage().toFixed(2)}%
+                  </p>
+                )}
               </div>
 
-              {Math.abs(calculateTotalPercentage() - 100) > 0.01 && (
-                <p className="text-sm text-red-600">
-                  ⚠️ Percentages must sum to exactly 100%. Current total:{" "}
-                  {calculateTotalPercentage().toFixed(2)}%
-                </p>
-              )}
-            </div>
-
-            {/* Save Button */}
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                onClick={savePayment}
-                disabled={
-                  saving || Math.abs(calculateTotalPercentage() - 100) > 0.01
-                }
-                className="flex items-center gap-2"
-              >
-                <Save className="h-4 w-4" />
-                {saving
-                  ? "Saving..."
-                  : isEditing
-                  ? "Update Payment"
-                  : "Save Payment"}
-              </Button>
-            </div>
-          </form>
-        )}
+              {/* Save Button */}
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  onClick={savePayment}
+                  disabled={
+                    saving || Math.abs(calculateTotalPercentage() - 100) > 0.01
+                  }
+                  className="flex items-center gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  {saving
+                    ? "Saving..."
+                    : isEditing
+                    ? "Update Payment"
+                    : "Save Payment"}
+                </Button>
+              </div>
+            </form>
+          )}
 
         {/* Payment History - Only show when not editing and payments exist */}
         {payments.length > 0 && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">Payment History</h3>
-              {isAdmin && (
+              {isAdmin && hasAmountToPay && (
                 <Button
                   type="button"
                   variant="outline"
@@ -1496,7 +1374,7 @@ export function PaymentSection({
               )}
             </div>
             <div className="space-y-4">
-              {payments.map((payment) => (
+              {payments.map((payment: Payment) => (
                 <Card
                   key={payment.id}
                   className="border-l-4 border-l-green-500"
@@ -1626,6 +1504,38 @@ export function PaymentSection({
                   </CardContent>
                 </Card>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Message when total amount is 0 but payments exist */}
+        {payments.length > 0 && !hasAmountToPay && (
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <div className="flex items-start gap-2">
+              <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+              <div className="text-sm text-blue-800">
+                <p className="font-medium">No payment to be done</p>
+                <p className="text-xs mt-1">
+                  The total amount for this dossier is 0. No additional payments
+                  can be added at this time.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Message when total amount is 0 and no payments */}
+        {payments.length === 0 && !hasAmountToPay && (
+          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+            <div className="flex items-start gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+              <div className="text-sm text-green-800">
+                <p className="font-medium">No payment to be done</p>
+                <p className="text-xs mt-1">
+                  The total amount for this dossier is 0. No payments are needed
+                  at this time.
+                </p>
+              </div>
             </div>
           </div>
         )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import CLientNotFound from "./CLientNotFound";
 import {
   Card,
   CardContent,
@@ -10,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -24,7 +26,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { clientsAPI, attachmentsAPI, employeesAPI } from "@/lib/api";
+import {
+  clientsAPI,
+  attachmentsAPI,
+  employeesAPI,
+  dossiersAPI,
+} from "@/lib/api";
 import {
   Client,
   Attachment,
@@ -61,13 +68,13 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
   const [client, setClient] = useState<Client | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [assignedEmployees, setAssignedEmployees] = useState<
-    DossierEmployeeAssignment[]
-  >([]);
   const [selectedDossier, setSelectedDossier] = useState<Dossier | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [assignedEmployees, setAssignedEmployees] = useState<
+    DossierEmployeeAssignment[]
+  >([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("");
   const { user } = useAuth();
@@ -79,26 +86,30 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
   const loadClientData = async () => {
     setLoading(true);
     try {
-      const [
-        clientData,
-        attachmentsData,
-        employeesData,
-        assignedEmployeesData,
-      ] = await Promise.all([
+      const [clientData, attachmentsData, employeesData] = await Promise.all([
         clientsAPI.getById(clientId),
         attachmentsAPI.getByClient(clientId),
         employeesAPI.getAll(),
-        clientsAPI.getAssignedEmployees(clientId),
       ]);
       setClient(clientData);
       setAttachments(attachmentsData);
       setEmployees(employeesData);
-      setAssignedEmployees(assignedEmployeesData);
     } catch (error) {
       toast.error("Failed to load client data");
       console.error("Failed to load client data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const refreshDossierData = async () => {
+    if (selectedDossier) {
+      try {
+        const updatedDossier = await dossiersAPI.getById(selectedDossier.id);
+        setSelectedDossier(updatedDossier);
+      } catch (error) {
+        console.error("Failed to refresh dossier data:", error);
+      }
     }
   };
 
@@ -122,7 +133,6 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
 
   const handleDeleteAttachment = async (attachmentId: string) => {
     if (!confirm("Are you sure you want to delete this file?")) return;
-
     try {
       await attachmentsAPI.delete(attachmentId);
       toast.success("File deleted successfully");
@@ -149,14 +159,14 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
   };
 
   const handleAssignEmployee = async () => {
-    if (!selectedEmployeeId) {
+    if (!selectedEmployeeId || !selectedDossier) {
       toast.error("Please select an employee");
       return;
     }
 
     try {
-      await clientsAPI.assignEmployee(
-        clientId,
+      await dossiersAPI.assignEmployee(
+        selectedDossier.id,
         selectedEmployeeId,
         selectedRole
       );
@@ -164,27 +174,36 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
       setIsAssignDialogOpen(false);
       setSelectedEmployeeId("");
       setSelectedRole("");
-      loadClientData(); // Reload client data to get updated assignment
+      refreshDossierData(); // Refresh dossier data to get updated assignments
     } catch (error) {
+      console.error("Failed to assign employee:", error);
       toast.error("Failed to assign employee");
     }
   };
+  useEffect(() => {
+    const fetchAssignedEmployees = async () => {
+      if (selectedDossier) {
+        const assignedEmployees = await dossiersAPI.getAssignedEmployees(
+          selectedDossier.id
+        );
+        setAssignedEmployees(assignedEmployees);
+      }
+    };
+    fetchAssignedEmployees();
+  }, [selectedDossier]);
 
-  const handleUnassignEmployee = async (assignmentId: string) => {
+  const handleUnassignEmployee = async (
+    dossierId: string,
+    employeeId: string
+  ) => {
     if (!confirm("Are you sure you want to unassign this employee?")) return;
 
     try {
-      // Find the assignment to get the employeeId
-      const assignment = assignedEmployees.find((a) => a.id === assignmentId);
-      if (!assignment) {
-        toast.error("Assignment not found");
-        return;
-      }
-
-      await clientsAPI.unassignEmployee(clientId, assignment.employeeId);
+      await dossiersAPI.unassignEmployee(dossierId, employeeId);
       toast.success("Employee unassigned successfully");
-      loadClientData(); // Reload client data
+      refreshDossierData(); // Refresh dossier data to get updated assignments
     } catch (error) {
+      console.error("Failed to unassign employee:", error);
       toast.error("Failed to unassign employee");
     }
   };
@@ -224,16 +243,7 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
   }
 
   if (!client) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Client Not Found</CardTitle>
-          <CardDescription>
-            The requested client could not be found.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    );
+    return <CLientNotFound />;
   }
 
   return (
@@ -375,159 +385,93 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
         )}
 
       {/* Employee Assignment */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
+      {selectedDossier && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
               <UserPlus className="h-5 w-5" />
-              <span>Assigned Employee</span>
-            </div>
-            <div className="flex space-x-2">
-              <Dialog
-                open={isAssignDialogOpen}
-                onOpenChange={setIsAssignDialogOpen}
-              >
-                <DialogTrigger asChild>
-                  <Button size="sm" variant="outline">
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Assign Employee
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Assign Employee to Client</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium">
-                        Select Employee
-                      </label>
-                      <Select
-                        value={selectedEmployeeId}
-                        onValueChange={setSelectedEmployeeId}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choose an employee" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {employees.map((employee) => (
-                            <SelectItem key={employee.id} value={employee.id}>
-                              {employee.fullName} (
-                              {employee.commissionPercentage}% commission)
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+              <span>Employee Assignment</span>
+            </CardTitle>
+            <CardDescription>
+              Assign employees to dossier #
+              {selectedDossier.id.slice(-8).toUpperCase()}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Current Assignments */}
+            {assignedEmployees && assignedEmployees.length > 0 ? (
+              <div className="space-y-3">
+                <h4 className="font-medium text-gray-900">
+                  Currently Assigned Employees
+                </h4>
+                {assignedEmployees.map((assignment) => (
+                  <div
+                    key={assignment.id}
+                    className="flex items-center justify-between p-3 border rounded-lg bg-gray-50"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <User className="h-4 w-4 text-gray-500" />
+                      <div>
+                        <div className="font-medium">
+                          {assignment.employee.fullName}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {assignment.role
+                            ? `Role: ${assignment.role}`
+                            : "No specific role"}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          Assigned:{" "}
+                          {new Date(assignment.assignedAt).toLocaleDateString()}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label className="text-sm font-medium">Select Role</label>
-                      <Select
-                        value={selectedRole}
-                        onValueChange={setSelectedRole}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choose a role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="PRIMARY_EMPLOYEE">
-                            Primary Employee
-                          </SelectItem>
-                          <SelectItem value="SECONDARY_EMPLOYEE">
-                            Secondary Employee
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex justify-end space-x-2">
+                    {user?.role === "ADMIN" && (
                       <Button
                         variant="outline"
-                        onClick={() => setIsAssignDialogOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button onClick={handleAssignEmployee}>
-                        Assign Employee
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-              {assignedEmployees.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {assignedEmployees.map((assignment) => (
-                    <Badge
-                      key={assignment.id}
-                      variant="secondary"
-                      className="flex items-center"
-                    >
-                      <User className="h-3 w-3 mr-1" />
-                      {assignment.employee.fullName} (
-                      {assignment.role
-                        ? assignment.role.replace("_", " ")
-                        : "No role"}
-                      )
-                      <Button
-                        variant="ghost"
                         size="sm"
-                        onClick={() => handleUnassignEmployee(assignment.id)}
-                        className="ml-2"
+                        onClick={() =>
+                          handleUnassignEmployee(
+                            selectedDossier.id,
+                            assignment.employeeId
+                          )
+                        }
+                        className="text-red-600 hover:text-red-800"
                       >
-                        <UserMinus className="h-3 w-3" />
+                        <UserMinus className="h-4 w-4" />
                       </Button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-          </CardTitle>
-          <CardDescription>
-            Employee responsible for this client and commission tracking
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {assignedEmployees.length > 0 ? (
-            <div className="space-y-4">
-              {assignedEmployees.map((assignment) => (
-                <div key={assignment.id} className="border rounded-lg p-4">
-                  <div className="font-semibold">
-                    {assignment.employee.fullName} (
-                    {assignment.role
-                      ? assignment.role.replace("_", " ")
-                      : "No role"}
-                    )
-                  </div>
-                  <div className="text-gray-600 space-y-1 mt-2">
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="h-3 w-3" />
-                      <span>Salary Type: {assignment.employee.salaryType}</span>
-                    </div>
-                    {assignment.employee.commissionPercentage && (
-                      <div className="flex items-center gap-2">
-                        <Heart className="h-3 w-3" />
-                        <span>
-                          Commission Rate:{" "}
-                          {assignment.employee.commissionPercentage}%
-                        </span>
-                      </div>
                     )}
                   </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                No employees assigned to this dossier yet.
+              </div>
+            )}
+
+            {/* Assign New Employee */}
+            {user?.role === "ADMIN" && (
+              <div className="border-t pt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium text-gray-900">
+                    Assign New Employee
+                  </h4>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsAssignDialogOpen(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    Assign Employee
+                  </Button>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <UserPlus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">
-                No employee assigned to this client
-              </p>
-              <p className="text-sm text-gray-400 mt-2">
-                Assign an employee to track commissions and responsibilities
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Phone Numbers */}
       {client.phoneNumbers.length > 0 && (
@@ -708,6 +652,7 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
         clientId={clientId}
         dossierId={selectedDossier?.id}
         dossierStatus={selectedDossier?.status}
+        totalAmount={selectedDossier?.totalAmount}
       />
 
       {/* Timestamps */}
@@ -732,6 +677,60 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Employee Assignment Dialog */}
+      <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign Employee to Dossier</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="employee-select">Select Employee</Label>
+              <Select
+                value={selectedEmployeeId}
+                onValueChange={setSelectedEmployeeId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose an employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {employee.fullName} -{" "}
+                      {employee.salaryType.replace("_", " ")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="role-input">Role (Optional)</Label>
+              <input
+                id="role-input"
+                type="text"
+                placeholder="e.g., Case Manager, Assistant"
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsAssignDialogOpen(false);
+                  setSelectedEmployeeId("");
+                  setSelectedRole("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleAssignEmployee}>Assign Employee</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -28,8 +28,8 @@ interface Transaction {
     name: string;
   };
   payment?: {
-    client: {
-      fullName: string;
+    dossier: {
+      dossierId: string;
     };
   };
 }
@@ -167,7 +167,7 @@ export function TransactionApproval() {
                       </p>
                       {transaction.payment && (
                         <p className="text-sm text-muted-foreground">
-                          Client: {transaction.payment.client.fullName}
+                          Dossier: {transaction.payment.dossier.dossierId}
                         </p>
                       )}
                       <p className="text-sm text-muted-foreground">
