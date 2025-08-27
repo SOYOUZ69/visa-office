@@ -1,7 +1,16 @@
 export interface User {
   id: string;
   email: string;
-  role: "ADMIN" | "USER";
+  roleId: string;
+  roleName: string;
+  permissions: string[];
+  employee?: {
+    id: string;
+    fullName: string;
+    department?: string;
+    hireDate?: string;
+    isActive: boolean;
+  } | null;
   createdAt: string;
   updatedAt: string;
 }

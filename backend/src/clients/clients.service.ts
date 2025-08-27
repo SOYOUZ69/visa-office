@@ -405,4 +405,56 @@ export class ClientsService {
       return completeClient;
     });
   }
+
+  async getAssignedEmployees(clientId: string) {
+    // Verify client exists
+    await this.findOne(clientId);
+
+    // Get all employees assigned to this client's dossiers
+    const assignments = await this.prisma.dossierEmployeeAssignment.findMany({
+      where: {
+        dossier: {
+          clientId: clientId,
+        },
+        isActive: true,
+      },
+      include: {
+        employee: {
+          include: {
+            user: {
+              include: {
+                role: true,
+              },
+            },
+          },
+        },
+        dossier: true,
+      },
+      orderBy: {
+        assignedAt: 'desc',
+      },
+    });
+
+    // Transform the data to return a clean structure
+    return assignments.map(assignment => ({
+      id: assignment.id,
+      assignedAt: assignment.assignedAt,
+      role: assignment.role,
+      dossier: {
+        id: assignment.dossier.id,
+        status: assignment.dossier.status,
+      },
+      employee: {
+        id: assignment.employee.id,
+        fullName: assignment.employee.fullName,
+        email: assignment.employee.email,
+        department: assignment.employee.department,
+        isActive: assignment.employee.isActive,
+        user: assignment.employee.user ? {
+          email: assignment.employee.user.email,
+          role: assignment.employee.user.role?.name,
+        } : null,
+      },
+    }));
+  }
 }

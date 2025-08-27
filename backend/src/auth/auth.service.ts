@@ -14,9 +14,21 @@ export class AuthService {
   async validateUser(email: string, password: string) {
     const user = await this.prisma.user.findUnique({
       where: { email },
+      include: {
+        role: {
+          include: {
+            permissions: {
+              include: {
+                permission: true,
+              },
+            },
+          },
+        },
+        employee: true,
+      },
     });
 
-    if (user && await bcrypt.compare(password, user.password)) {
+    if (user && user.isActive && await bcrypt.compare(password, user.password)) {
       const { password, ...result } = user;
       return result;
     }
@@ -32,16 +44,26 @@ export class AuthService {
 
     const payload = { 
       email: user.email, 
-      sub: user.id, 
-      role: user.role 
+      sub: user.id,
+      roleId: user.roleId,
+      roleName: user.role?.name,
     };
+
+    const permissions = user.role?.permissions.map(rp => rp.permission.name) || [];
 
     return {
       access_token: this.jwtService.sign(payload),
       user: {
         id: user.id,
         email: user.email,
-        role: user.role,
+        roleId: user.roleId,
+        roleName: user.role?.name,
+        permissions,
+        employee: user.employee ? {
+          id: user.employee.id,
+          fullName: user.employee.fullName,
+          department: user.employee.department,
+        } : null,
       },
     };
   }
@@ -49,12 +71,25 @@ export class AuthService {
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
+      include: {
+        role: {
+          include: {
+            permissions: {
+              include: {
+                permission: true,
+              },
+            },
+          },
+        },
+        employee: {
+          select: {
+            id: true,
+            fullName: true,
+            department: true,
+            hireDate: true,
+            isActive: true,
+          },
+        },
       },
     });
 
@@ -62,6 +97,17 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    return user;
+    const permissions = user.role?.permissions.map(rp => rp.permission.name) || [];
+
+    return {
+      id: user.id,
+      email: user.email,
+      roleId: user.roleId,
+      roleName: user.role?.name,
+      permissions,
+      employee: user.employee,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
   }
 }

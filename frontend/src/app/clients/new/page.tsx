@@ -19,7 +19,7 @@ export default function NewClientPage() {
   const clientType = searchParams.get("type");
   const { user } = useAuth();
 
-  if (user?.role !== "ADMIN") {
+  if (user?.roleName !== "Admin") {
     return (
       <ProtectedRoute>
         <Layout>

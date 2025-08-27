@@ -38,7 +38,7 @@ export default function EditClientPage() {
     }
   };
 
-  if (user?.role !== 'ADMIN') {
+  if (user?.roleName !== "Admin") {
     return (
       <ProtectedRoute>
         <Layout>

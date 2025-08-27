@@ -37,10 +37,7 @@ enum AttachmentType {
   OTHER
 }
 
-enum UserRole {
-  ADMIN
-  USER
-}
+// UserRole enum supprimé - remplacé par système de rôles dynamique
 
 enum ServiceType {
   TRANSLATION
@@ -121,15 +118,107 @@ enum DossierStatus {
 }
 
 // Models
+
+// Système de rôles dynamique
+model Role {
+  id             String   @id @default(cuid())
+  name           String   @unique
+  description    String?
+  isSystemRole   Boolean  @default(false)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  users       User[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  module      String
+  action      String
+  description String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String    @id @default(cuid())
+  roleId       String
+  permissionId String
+  grantedBy    String?
+  grantedAt    DateTime  @default(now())
+
+  // Relations
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  admin      User?      @relation(fields: [grantedBy], references: [id])
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
+  id        String    @id @default(cuid())
+  email     String    @unique
   password  String
-  role      UserRole @default(USER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  roleId    String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  role               Role?               @relation(fields: [roleId], references: [id])
+  employee           Employee?
+  sessions           UserSession[]
+  auditLogs          AuditLog[]
+  grantedPermissions RolePermission[]
 
   @@map("users")
+}
+
+model UserSession {
+  id           String    @id @default(cuid())
+  userId       String
+  tokenHash    String
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  lastActivity DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_sessions")
+}
+
+model AuditLog {
+  id           String    @id @default(cuid())
+  userId       String?
+  employeeId   String?
+  action       String
+  resourceType String?
+  resourceId   String?
+  oldValues    Json?
+  newValues    Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime  @default(now())
+
+  // Relations
+  user     User?     @relation(fields: [userId], references: [id])
+  employee Employee? @relation(fields: [employeeId], references: [id])
+
+  @@map("audit_logs")
 }
 
 model Client {
@@ -342,18 +431,25 @@ model FinancialReport {
 model Employee {
   id                   String     @id @default(cuid())
   fullName             String
+  email                String?    @unique
+  userId               String?    @unique
+  department           String?
+  hireDate             DateTime?
   salaryType           SalaryType
-  salaryAmount         Decimal
+  salaryAmount         Decimal    @db.Decimal(10, 2)
   commissionPercentage String
-  soldeCoungiee        Decimal
+  soldeCoungiee        Decimal    @db.Decimal(10, 2) @default(0)
+  isActive             Boolean    @default(true)
   createdAt            DateTime   @default(now())
   updatedAt            DateTime   @updatedAt
 
   // Relations
-  assignedDossiers DossierEmployeeAssignment[]
-  attendance      Attendance[]
-  commissions     EmployeeCommission[]
-  salaryPayments  SalaryPayment[]
+  user                      User?                       @relation(fields: [userId], references: [id])
+  assignedDossiers          DossierEmployeeAssignment[]
+  attendance                Attendance[]
+  commissions               EmployeeCommission[]
+  salaryPayments            SalaryPayment[]
+  auditLogs                 AuditLog[]
 
   @@map("employees")
 }

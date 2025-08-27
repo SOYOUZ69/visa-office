@@ -1,0 +1,135 @@
+// Ajouts au schéma Prisma existant pour le système de rôles dynamique
+
+// Nouveau modèle de Rôle
+model Role {
+  id             String   @id @default(cuid())
+  name           String   @unique
+  description    String?
+  isSystemRole   Boolean  @default(false) // true pour SUPER_ADMIN (non supprimable)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  users       User[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+// Modèle de Permission
+model Permission {
+  id          String   @id @default(cuid())
+  name        String   @unique // Ex: 'clients.create', 'employees.read'
+  module      String   // Ex: 'clients', 'employees', 'users'
+  action      String   // Ex: 'create', 'read', 'update', 'delete'
+  description String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+// Table de liaison Many-to-Many Rôles-Permissions
+model RolePermission {
+  id           String    @id @default(cuid())
+  roleId       String
+  permissionId String
+  grantedBy    String?   // ID de l'admin qui a accordé cette permission
+  grantedAt    DateTime  @default(now())
+
+  // Relations
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  admin      User?      @relation(fields: [grantedBy], references: [id])
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// Modèle User mis à jour
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  roleId    String?   // Lien vers Role dynamique
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  role               Role?               @relation(fields: [roleId], references: [id])
+  employee           Employee?           // Relation 1-to-1 avec Employee
+  sessions           UserSession[]
+  auditLogs          AuditLog[]
+  grantedPermissions RolePermission[]
+
+  @@map("users")
+}
+
+// Modèle Employee mis à jour avec lien vers User
+model Employee {
+  id                   String               @id @default(cuid())
+  fullName             String
+  email                String?              @unique
+  userId               String?              @unique // Lien vers User
+  department           String?
+  hireDate             DateTime?
+  salaryType           SalaryType
+  salaryAmount         Decimal              @db.Decimal(10, 2)
+  commissionPercentage String
+  soldeCoungiee        Decimal              @db.Decimal(10, 2) @default(0)
+  isActive             Boolean              @default(true)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  // Relations
+  user                      User?                       @relation(fields: [userId], references: [id])
+  attendance                EmployeeAttendance[]
+  commissions               EmployeeCommission[]
+  salaryPayments            EmployeeSalaryPayment[]
+  assignedDossiers          DossierEmployeeAssignment[]
+  auditLogs                 AuditLog[]
+
+  @@map("employees")
+}
+
+// Sessions utilisateur pour sécurité
+model UserSession {
+  id           String    @id @default(cuid())
+  userId       String
+  tokenHash    String
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  lastActivity DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_sessions")
+}
+
+// Audit Log pour traçabilité complète
+model AuditLog {
+  id           String    @id @default(cuid())
+  userId       String?
+  employeeId   String?
+  action       String    // Ex: 'CREATE_CLIENT', 'UPDATE_EMPLOYEE', 'DELETE_USER'
+  resourceType String?   // Ex: 'Client', 'Employee', 'User'
+  resourceId   String?
+  oldValues    Json?     // Valeurs avant modification
+  newValues    Json?     // Valeurs après modification
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime  @default(now())
+
+  // Relations
+  user     User?     @relation(fields: [userId], references: [id])
+  employee Employee? @relation(fields: [employeeId], references: [id])
+
+  @@map("audit_logs")
+}

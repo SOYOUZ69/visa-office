@@ -5,18 +5,15 @@ import type { Response } from 'express';
 import { AttachmentsService } from './attachments.service';
 import { UploadAttachmentDto } from './dto/upload-attachment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/guards/roles.guard';
-import { UserRole } from '@prisma/client';
+// UserRole enum removed
 
 @ApiTags('Attachments')
 @Controller('api/v1')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard)
 export class AttachmentsController {
   constructor(private readonly attachmentsService: AttachmentsService) {}
 
   @Post('clients/:id/attachments')
-  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload a file for a client' })
@@ -45,7 +42,6 @@ export class AttachmentsController {
   }
 
   @Delete('attachments/:id')
-  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete an attachment' })
   @ApiResponse({ status: 200, description: 'Attachment deleted successfully' })

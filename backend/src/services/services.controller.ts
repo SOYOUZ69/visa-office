@@ -25,15 +25,13 @@ import { CreateManyServicesDto } from './dto/create-many-services.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { ServiceResponseDto } from './dto/service-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole, ServiceType } from '@prisma/client';
+import { ServiceType } from '@prisma/client';
 import { ServiceItem } from '@prisma/client';
 
 @ApiTags('Services')
 @ApiBearerAuth()
 @Controller('api/v1')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard)
 export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
 
@@ -46,7 +44,6 @@ export class ServicesController {
     type: [ServiceResponseDto],
   })
   @ApiResponse({ status: 404, description: 'Client not found' })
-  @Roles(UserRole.ADMIN, UserRole.USER)
   async getClientServices(@Param('id') clientId: string): Promise<ServiceItem[]> {
     return this.servicesService.getClientServices(clientId);
   }
@@ -60,7 +57,6 @@ export class ServicesController {
     type: [ServiceResponseDto],
   })
   @ApiResponse({ status: 404, description: 'Dossier not found' })
-  @Roles(UserRole.ADMIN, UserRole.USER)
   async getDossierServices(@Param('id') dossierId: string): Promise<ServiceItem[]> {
     return this.servicesService.getDossierServices(dossierId);
   }
@@ -74,7 +70,6 @@ export class ServicesController {
   })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 404, description: 'Dossier not found' })
-  @Roles(UserRole.ADMIN)
   async createService(
     @Body() createServiceDto: CreateServiceDto,
   ): Promise<ServiceItem> {
@@ -90,7 +85,6 @@ export class ServicesController {
   })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 404, description: 'Dossier not found' })
-  @Roles(UserRole.ADMIN)
   async createManyServices(
     @Body() createManyServicesDto: CreateManyServicesDto,
   ): Promise<ServiceItem[]> {
@@ -107,7 +101,6 @@ export class ServicesController {
   })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 404, description: 'Service not found' })
-  @Roles(UserRole.ADMIN)
   async updateService(
     @Param('serviceId') serviceId: string,
     @Body() updateServiceDto: UpdateServiceDto,
@@ -121,7 +114,6 @@ export class ServicesController {
   @ApiParam({ name: 'serviceId', description: 'Service ID' })
   @ApiResponse({ status: 204, description: 'Service deleted successfully' })
   @ApiResponse({ status: 404, description: 'Service not found' })
-  @Roles(UserRole.ADMIN)
   async deleteService(@Param('serviceId') serviceId: string): Promise<void> {
     return this.servicesService.deleteService(serviceId);
   }
@@ -147,7 +139,6 @@ export class ServicesController {
       }
     }
   })
-  @Roles(UserRole.ADMIN, UserRole.USER)
   async getLastPrice(@Query('serviceType') serviceType: ServiceType): Promise<{ unitPrice: number | null }> {
     return this.servicesService.getLastPrice(serviceType);
   }
@@ -170,7 +161,6 @@ export class ServicesController {
       }
     }
   })
-  @Roles(UserRole.ADMIN, UserRole.USER)
   async getLastPrices(@Body() serviceTypes: ServiceType[]): Promise<{ [key: string]: number | null }> {
     return this.servicesService.getLastPrices(serviceTypes);
   }

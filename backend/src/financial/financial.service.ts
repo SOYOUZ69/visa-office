@@ -109,7 +109,11 @@ export class FinancialService {
         caisse: true,
         payment: {
           include: {
-            client: true,
+            dossier: {
+              include: {
+                client: true,
+              },
+            },
           },
         },
       },
@@ -142,7 +146,11 @@ export class FinancialService {
         caisse: true,
         payment: {
           include: {
-            client: true,
+            dossier: {
+              include: {
+                client: true,
+              },
+            },
           },
         },
       },
@@ -238,7 +246,11 @@ export class FinancialService {
         caisse: true,
         payment: {
           include: {
-            client: true,
+            dossier: {
+              include: {
+                client: true,
+              },
+            },
           },
         },
       },
@@ -267,7 +279,11 @@ export class FinancialService {
         caisse: true,
         payment: {
           include: {
-            client: true,
+            dossier: {
+              include: {
+                client: true,
+              },
+            },
           },
         },
       },
@@ -351,7 +367,11 @@ export class FinancialService {
         caisse: true,
         payment: {
           include: {
-            client: true,
+            dossier: {
+              include: {
+                client: true,
+              },
+            },
           },
         },
       },

@@ -12,6 +12,8 @@ import { PaymentsModule } from './payments/payments.module';
 import { FinancialModule } from './financial/financial.module';
 import { EmployeeModule } from './employee/employee.module';
 import { DossiersModule } from './dossiers/dossiers.module';
+import { RolesModule } from './roles/roles.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { DossiersModule } from './dossiers/dossiers.module';
     }),
     PrismaModule,
     AuthModule,
+    RolesModule,
+    AdminModule,
     MetaModule,
     ClientsModule,
     AttachmentsModule,

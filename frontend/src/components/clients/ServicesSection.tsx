@@ -111,7 +111,7 @@ export function ServicesSection({
     name: "services",
   });
 
-  const isAdmin = user?.role === "ADMIN";
+  const isAdmin = user?.roleName === "Admin";
 
   useEffect(() => {
     // Load service types only once

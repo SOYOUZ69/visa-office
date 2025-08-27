@@ -89,7 +89,7 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
             <p className="text-gray-600">
-              Welcome back, {user?.email} ({user?.role.toLowerCase()})
+              Welcome back, {user?.email} ({user?.roleName?.toLowerCase()})
             </p>
           </div>
 

@@ -44,7 +44,7 @@ export function NewClientTab() {
   const router = useRouter();
 
   // If user is not admin, show read-only message
-  if (user?.role !== 'ADMIN') {
+  if (user?.roleName !== "Admin") {
     return (
       <Card>
         <CardHeader>

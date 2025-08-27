@@ -14,19 +14,16 @@ import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { ApproveTransactionDto } from './dto/approve-transaction.dto';
 import { RejectTransactionDto } from './dto/reject-transaction.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
+// UserRole enum removed
 
 @ApiTags('Financial')
 @Controller('/api/v1/financial')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard)
 export class FinancialController {
   constructor(private readonly financialService: FinancialService) {}
 
   // Caisse endpoints
   @Post('caisses')
-  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Create a new caisse' })
   @ApiResponse({ status: 201, description: 'Caisse created successfully' })
   createCaisse(@Body() createCaisseDto: CreateCaisseDto) {
@@ -49,7 +46,6 @@ export class FinancialController {
 
   // Transaction endpoints
   @Post('transactions')
-  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Create a new transaction' })
   @ApiResponse({ status: 201, description: 'Transaction created successfully' })
   createTransaction(@Body() createTransactionDto: CreateTransactionDto) {
@@ -78,7 +74,6 @@ export class FinancialController {
 
   // Financial reports endpoints
   @Post('reports/generate')
-  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Generate financial report' })
   @ApiResponse({ status: 201, description: 'Financial report generated' })
   generateFinancialReport(
@@ -124,7 +119,6 @@ export class FinancialController {
 
   // Transaction Approval endpoints
   @Get('transactions/pending')
-  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Get all pending transactions for approval' })
   @ApiResponse({ status: 200, description: 'List of pending transactions' })
   getPendingTransactions() {
@@ -132,7 +126,6 @@ export class FinancialController {
   }
 
   @Post('transactions/:id/approve')
-  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Approve a pending transaction' })
   @ApiResponse({
     status: 200,
@@ -149,7 +142,6 @@ export class FinancialController {
   }
 
   @Post('transactions/:id/reject')
-  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Reject a pending transaction' })
   @ApiResponse({
     status: 200,

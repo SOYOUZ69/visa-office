@@ -23,18 +23,15 @@ import { QueryClientDto } from './dto/query-client.dto';
 import { CreateFamilyMemberDto } from './dto/create-family-member.dto';
 import { CreatePhoneCallClientDto } from './dto/create-phone-call-client.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/guards/roles.guard';
-import { UserRole } from '@prisma/client';
+// UserRole enum removed
 
 @ApiTags('Clients')
 @Controller('api/v1/clients')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard)
 export class ClientsController {
   constructor(private readonly clientsService: ClientsService) {}
 
   @Post()
-  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new client' })
   @ApiResponse({ status: 201, description: 'Client created successfully' })
@@ -46,7 +43,6 @@ export class ClientsController {
   }
 
   @Post('phone-call')
-  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({
     summary:
@@ -99,7 +95,6 @@ export class ClientsController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a client' })
   @ApiResponse({ status: 200, description: 'Client updated successfully' })
@@ -112,7 +107,6 @@ export class ClientsController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a client' })
   @ApiResponse({ status: 200, description: 'Client deleted successfully' })
@@ -124,7 +118,6 @@ export class ClientsController {
   }
 
   @Post(':id/family-members')
-  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Add a family member to a client' })
   @ApiResponse({ status: 201, description: 'Family member added successfully' })
@@ -137,6 +130,16 @@ export class ClientsController {
     @Body() createFamilyMemberDto: CreateFamilyMemberDto,
   ) {
     return this.clientsService.addFamilyMember(id, createFamilyMemberDto);
+  }
+
+  @Get(':id/assigned-employees')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get employees assigned to a client' })
+  @ApiResponse({ status: 200, description: 'Assigned employees retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Client not found' })
+  getAssignedEmployees(@Param('id') id: string) {
+    return this.clientsService.getAssignedEmployees(id);
   }
 
  

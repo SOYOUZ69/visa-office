@@ -502,3 +502,85 @@ export const employeesAPI = {
     return response.data;
   },
 };
+
+// Admin API
+export const adminAPI = {
+  // Roles management
+  getRoles: async () => {
+    const response = await api.get("/api/v1/admin/roles");
+    return response.data;
+  },
+  getRole: async (id: string) => {
+    const response = await api.get(`/api/v1/admin/roles/${id}`);
+    return response.data;
+  },
+  createRole: async (data: any) => {
+    const response = await api.post("/api/v1/admin/roles", data);
+    return response.data;
+  },
+  updateRole: async (id: string, data: any) => {
+    const response = await api.put(`/api/v1/admin/roles/${id}`, data);
+    return response.data;
+  },
+  deleteRole: async (id: string) => {
+    const response = await api.delete(`/api/v1/admin/roles/${id}`);
+    return response.data;
+  },
+  updateRolePermissions: async (roleId: string, permissionIds: string[]) => {
+    const response = await api.put(`/api/v1/admin/roles/${roleId}/permissions`, {
+      permissionIds
+    });
+    return response.data;
+  },
+
+  // Permissions management
+  getPermissions: async () => {
+    const response = await api.get("/api/v1/admin/permissions");
+    return response.data;
+  },
+
+  // Users management
+  getUsers: async () => {
+    const response = await api.get("/api/v1/admin/users");
+    return response.data;
+  },
+  getUser: async (id: string) => {
+    const response = await api.get(`/api/v1/admin/users/${id}`);
+    return response.data;
+  },
+  createUser: async (data: any) => {
+    const response = await api.post("/api/v1/admin/users", data);
+    return response.data;
+  },
+  updateUser: async (id: string, data: any) => {
+    const response = await api.put(`/api/v1/admin/users/${id}`, data);
+    return response.data;
+  },
+  deleteUser: async (id: string) => {
+    const response = await api.delete(`/api/v1/admin/users/${id}`);
+    return response.data;
+  },
+  updateUserRole: async (userId: string, roleId: string) => {
+    const response = await api.put(`/api/v1/admin/users/${userId}/role`, {
+      roleId
+    });
+    return response.data;
+  },
+
+  // System management
+  getStatistics: async () => {
+    const response = await api.get("/api/v1/admin/statistics");
+    return response.data;
+  },
+  getAuditLogs: async (page?: number, limit?: number) => {
+    const params: any = {};
+    if (page !== undefined) params.page = page;
+    if (limit !== undefined) params.limit = limit;
+    const response = await api.get("/api/v1/admin/audit-logs", { params });
+    return response.data;
+  },
+  initializeSystem: async () => {
+    const response = await api.post("/api/v1/admin/initialize-system");
+    return response.data;
+  },
+};

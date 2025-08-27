@@ -57,7 +57,7 @@ export default function ClientDetailPage() {
               </p>
             </div>
           </div>
-          {user?.role === 'ADMIN' && (
+          {user?.roleName === "Admin" && (
             <Button
               onClick={() => router.push(`/clients/${clientId}/edit`)}
             >

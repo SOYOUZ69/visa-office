@@ -18,6 +18,7 @@ import {
   BarChart3,
   Filter,
   UserPlus,
+  Shield,
 } from "lucide-react";
 
 const navigation = [
@@ -28,6 +29,13 @@ const navigation = [
     href: "/financial",
     icon: DollarSign,
     current: false,
+  },
+  {
+    name: "Administration",
+    href: "/admin",
+    icon: Shield,
+    current: false,
+    adminOnly: true,
   },
 ];
 
@@ -43,6 +51,15 @@ export function Sidebar() {
 
       <nav className="flex-1 space-y-1 px-2 py-4">
         {navigation.map((item) => {
+          // Filtrer les éléments admin pour les utilisateurs non autorisés
+          if (item.adminOnly) {
+            const userPermissions = user?.permissions || [];
+            const hasAdminPermission = userPermissions.includes('system.admin') || 
+                                     userPermissions.includes('users.read') || 
+                                     userPermissions.includes('roles.read');
+            if (!hasAdminPermission) return null;
+          }
+
           const isActive = pathname.startsWith(item.href);
           return (
             <Link
@@ -76,10 +93,10 @@ export function Sidebar() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-white truncate">
-              {user?.email}
+              {user?.employee?.fullName || user?.email}
             </p>
             <p className="text-xs text-gray-400 capitalize">
-              {user?.role.toLowerCase()}
+              {user?.roleName || 'Utilisateur'}
             </p>
           </div>
         </div>

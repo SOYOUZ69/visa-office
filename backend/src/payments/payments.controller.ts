@@ -24,15 +24,13 @@ import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { PaymentResponseDto } from './dto/payment-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '@prisma/client';
+// UserRole enum removed
 import { Payment, PaymentInstallment } from '@prisma/client';
 
 @ApiTags('Payments')
 @ApiBearerAuth()
 @Controller('api/v1')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard)
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
@@ -45,7 +43,6 @@ export class PaymentsController {
   })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 404, description: 'Dossier not found' })
-  @Roles(UserRole.ADMIN)
   async createPayment(
     @Body() createPaymentDto: CreatePaymentDto,
   ): Promise<Payment & { installments: PaymentInstallment[] }> {
@@ -64,7 +61,6 @@ export class PaymentsController {
     type: [PaymentResponseDto],
   })
   @ApiResponse({ status: 404, description: 'Dossier not found' })
-  @Roles(UserRole.ADMIN, UserRole.USER)
   async getDossierPayments(
     @Param('id') dossierId: string,
   ): Promise<(Payment & { installments: PaymentInstallment[] })[]> {
@@ -81,7 +77,6 @@ export class PaymentsController {
   })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 404, description: 'Payment not found' })
-  @Roles(UserRole.ADMIN)
   async updatePayment(
     @Param('paymentId') paymentId: string,
     @Body() updatePaymentDto: UpdatePaymentDto,
@@ -95,7 +90,6 @@ export class PaymentsController {
   @ApiParam({ name: 'paymentId', description: 'Payment ID' })
   @ApiResponse({ status: 204, description: 'Payment deleted successfully' })
   @ApiResponse({ status: 404, description: 'Payment not found' })
-  @Roles(UserRole.ADMIN)
   async deletePayment(@Param('paymentId') paymentId: string): Promise<void> {
     return this.paymentsService.deletePayment(paymentId);
   }
@@ -123,7 +117,6 @@ export class PaymentsController {
     description: 'Installment already paid or invalid data',
   })
   @ApiResponse({ status: 404, description: 'Installment not found' })
-  @Roles(UserRole.ADMIN)
   async markInstallmentAsPaid(
     @Param('installmentId') installmentId: string,
     @Query('caisseId') caisseId?: string,
@@ -147,7 +140,6 @@ export class PaymentsController {
       },
     },
   })
-  @Roles(UserRole.ADMIN, UserRole.USER)
   async getPaymentStatistics() {
     return this.paymentsService.getPaymentStatistics();
   }
@@ -168,7 +160,6 @@ export class PaymentsController {
     },
   })
   @ApiResponse({ status: 404, description: 'Dossier not found' })
-  @Roles(UserRole.ADMIN, UserRole.USER)
   async getUnprocessedServices(@Param('id') dossierId: string) {
     return this.paymentsService.getUnprocessedServices(dossierId);
   }

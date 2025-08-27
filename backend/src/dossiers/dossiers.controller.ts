@@ -20,12 +20,11 @@ import { CreateDossierDto } from './dto/create-dossier.dto';
 import { UpdateDossierDto } from './dto/update-dossier.dto';
 import { DossierResponseDto } from './dto/dossier-response.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { Roles, RolesGuard } from '../auth/guards/roles.guard';
-import { UserRole } from '@prisma/client';
+// UserRole enum removed
 
 @ApiTags('dossiers')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard)
 @Controller('api/v1/dossiers')
 export class DossiersController {
   constructor(private readonly dossiersService: DossiersService) {}
@@ -75,7 +74,6 @@ export class DossiersController {
     return this.dossiersService.remove(id);
   }
   @Post(':id/assign-employee')
-  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Assign an employee to a client' })
   @ApiResponse({ status: 200, description: 'Employee assigned successfully' })
@@ -95,7 +93,6 @@ export class DossiersController {
   }
 
   @Delete(':id/assign-employee')
-  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Unassign employee from a client' })
   @ApiResponse({ status: 200, description: 'Employee unassigned successfully' })
@@ -111,7 +108,6 @@ export class DossiersController {
   }
 
   @Get(':id/assigned-employees')
-  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all employees assigned to a client' })
   @ApiResponse({

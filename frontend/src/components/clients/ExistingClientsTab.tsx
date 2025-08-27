@@ -92,7 +92,7 @@ export function ExistingClientsTab() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-semibold text-gray-900">Existing Clients</h2>
-        {user?.role === 'ADMIN' && (
+        {user?.roleName === "Admin" && (
           <Button onClick={() => router.push('/clients/new')}>
             <Plus className="h-4 w-4 mr-2" />
             Add New Client
@@ -183,7 +183,7 @@ export function ExistingClientsTab() {
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
-                    {user?.role === 'ADMIN' && (
+                    {user?.roleName === "Admin" && (
                       <>
                         <Button
                           variant="outline"

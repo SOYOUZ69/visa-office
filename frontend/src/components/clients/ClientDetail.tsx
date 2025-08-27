@@ -628,7 +628,7 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
           <CardDescription>Upload and manage client documents</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {user?.role === "ADMIN" && (
+          {user?.roleName === "Admin" && (
             <div className="flex items-center space-x-2">
               <input
                 type="file"
@@ -668,7 +668,7 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
                     >
                       <Download className="h-4 w-4" />
                     </Button>
-                    {user?.role === "ADMIN" && (
+                    {user?.roleName === "Admin" && (
                       <Button
                         variant="outline"
                         size="sm"

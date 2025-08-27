@@ -152,7 +152,7 @@ export function PaymentSection({
     name: "installments",
   });
 
-  const isAdmin = user?.role === "ADMIN";
+  const isAdmin = user?.roleName === "Admin";
   const watchedPaymentOption = form.watch("paymentOption");
   const watchedPaymentModality = form.watch("paymentModality");
   const watchedInstallments = form.watch("installments");
