@@ -20,9 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { employeesAPI } from "@/lib/api";
+import { Checkbox } from "@/components/ui/checkbox";
+import { employeesAPI, financialAPI } from "@/lib/api";
 import { toast } from "sonner";
-import { CalendarIcon, Calculator, Check } from "lucide-react";
+import { CalendarIcon, Calculator, Check, DollarSign } from "lucide-react";
 
 interface Employee {
   id: string;
@@ -52,9 +53,30 @@ export function EmployeeManagement() {
     soldeCoungiee: "0",
   });
 
+  // Salary processing state
+  const [salaryDialogOpen, setSalaryDialogOpen] = useState(false);
+  const [processingEmployee, setProcessingEmployee] = useState<Employee | null>(null);
+  const [caisses, setCaisses] = useState<any[]>([]);
+  const [salaryFormData, setSalaryFormData] = useState({
+    month: new Date().getMonth() + 1,
+    year: new Date().getFullYear(),
+    caisseId: "",
+    addToVirtualCaisse: false,
+  });
+
   useEffect(() => {
     loadEmployees();
+    loadCaisses();
   }, []);
+
+  const loadCaisses = async () => {
+    try {
+      const data = await financialAPI.getCaisses();
+      setCaisses(data);
+    } catch (error) {
+      console.error("Error loading caisses:", error);
+    }
+  };
 
   const loadEmployees = async () => {
     try {
@@ -196,6 +218,41 @@ export function EmployeeManagement() {
     } catch (error) {
       console.error("Error processing commission:", error);
       toast.error("Erreur lors du traitement de la commission");
+    }
+  };
+
+  const openSalaryDialog = (employee: Employee) => {
+    setProcessingEmployee(employee);
+    setSalaryFormData({
+      month: new Date().getMonth() + 1,
+      year: new Date().getFullYear(),
+      caisseId: "",
+      addToVirtualCaisse: false,
+    });
+    setSalaryDialogOpen(true);
+  };
+
+  const handleProcessSalary = async () => {
+    if (!processingEmployee) return;
+
+    try {
+      const result = await employeesAPI.processSalary(
+        processingEmployee.id,
+        salaryFormData.month,
+        salaryFormData.year,
+        {
+          caisseId: salaryFormData.caisseId || undefined,
+          addToVirtualCaisse: salaryFormData.addToVirtualCaisse,
+        }
+      );
+      
+      toast.success("Salaire traité avec succès");
+      setSalaryDialogOpen(false);
+      setProcessingEmployee(null);
+      loadEmployees();
+    } catch (error) {
+      console.error("Error processing salary:", error);
+      toast.error("Erreur lors du traitement du salaire");
     }
   };
   const getSalaryTypeLabel = (type: string) => {
@@ -413,6 +470,15 @@ export function EmployeeManagement() {
                       </Button>
                       <Button
                         size="sm"
+                        variant="outline"
+                        onClick={() => openSalaryDialog(employee)}
+                        className="flex items-center gap-1"
+                      >
+                        <DollarSign className="h-4 w-4" />
+                        Traiter Salaire
+                      </Button>
+                      <Button
+                        size="sm"
                         variant="destructive"
                         onClick={() => deleteEmployee(employee.id)}
                       >
@@ -426,6 +492,126 @@ export function EmployeeManagement() {
           )}
         </CardContent>
       </Card>
+
+      {/* Salary Processing Dialog */}
+      <Dialog open={salaryDialogOpen} onOpenChange={setSalaryDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Traiter le salaire - {processingEmployee?.fullName}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="month">Mois</Label>
+                <Select
+                  value={salaryFormData.month.toString()}
+                  onValueChange={(value) =>
+                    setSalaryFormData({
+                      ...salaryFormData,
+                      month: parseInt(value),
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                      <SelectItem key={month} value={month.toString()}>
+                        {new Date(2024, month - 1).toLocaleDateString('fr-FR', { month: 'long' })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label htmlFor="year">Année</Label>
+                <Input
+                  id="year"
+                  type="number"
+                  value={salaryFormData.year}
+                  onChange={(e) =>
+                    setSalaryFormData({
+                      ...salaryFormData,
+                      year: parseInt(e.target.value),
+                    })
+                  }
+                  min={2020}
+                  max={2030}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="caisse">Caisse de paiement (optionnel)</Label>
+              <Select
+                value={salaryFormData.caisseId}
+                onValueChange={(value) =>
+                  setSalaryFormData({
+                    ...salaryFormData,
+                    caisseId: value,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner une caisse (optionnel)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {caisses
+                    .filter((caisse) => caisse.type !== 'VIRTUAL')
+                    .map((caisse) => (
+                      <SelectItem key={caisse.id} value={caisse.id}>
+                        {caisse.name} ({caisse.type === 'CASH' ? 'Cash' : 'Compte Bancaire'})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="addToVirtualCaisse"
+                checked={salaryFormData.addToVirtualCaisse}
+                onCheckedChange={(checked) =>
+                  setSalaryFormData({
+                    ...salaryFormData,
+                    addToVirtualCaisse: checked as boolean,
+                  })
+                }
+              />
+              <Label htmlFor="addToVirtualCaisse">
+                Ajouter à la Caisse Virtuelle
+              </Label>
+            </div>
+
+            <div className="text-sm text-muted-foreground">
+              <p>• Si aucune caisse n'est sélectionnée, la caisse par défaut sera utilisée</p>
+              <p>• La transaction sera créée avec le statut "En attente" pour approbation</p>
+              <p>• Vous pouvez toujours ajouter la transaction à la caisse virtuelle</p>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setSalaryDialogOpen(false);
+                setProcessingEmployee(null);
+              }}
+            >
+              Annuler
+            </Button>
+            <Button onClick={handleProcessSalary}>
+              Traiter le Salaire
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -85,6 +85,10 @@ export interface Dossier {
   serviceItems?: ServiceItem[];
   payments?: Payment[];
   assignedEmployees?: DossierEmployeeAssignment[];
+  client?: {
+    id: string;
+    fullName: string;
+  } | null;
 }
 
 export interface CreateDossierData {
@@ -357,6 +361,7 @@ export interface UnprocessedServicesResponse {
 export interface FinancialStatistics {
   revenue: number;
   expenses: number;
+  virtualCaisseTax: number;
   netProfit: number;
   transactionCounts: {
     total: number;
@@ -385,4 +390,8 @@ export interface Transaction {
   updatedAt: string;
   paymentId?: string;
   payment?: Payment & { client: Client };
+  dossierId?: string;
+  dossier?: Dossier & { client: Client };
+  employeeId?: string;
+  employee?: Employee;
 }

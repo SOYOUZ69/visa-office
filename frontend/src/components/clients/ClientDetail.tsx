@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import CLientNotFound from "./CLientNotFound";
+import CLientNotFound from "./clientDetails/CLientNotFound";
 import {
   Card,
   CardContent,

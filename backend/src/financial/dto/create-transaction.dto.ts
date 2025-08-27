@@ -1,11 +1,21 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsEnum, IsNumber, IsOptional, IsDateString } from 'class-validator';
-import { TransactionType, ExpenseCategory, TransactionStatus } from '@prisma/client';
+import {
+  IsString,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsDateString,
+} from 'class-validator';
+import {
+  TransactionType,
+  ExpenseCategory,
+  TransactionStatus,
+} from '@prisma/client';
 
 export class CreateTransactionDto {
   @ApiProperty({
     description: 'ID of the caisse',
-    example: 'clx123456789'
+    example: 'clx123456789',
   })
   @IsString()
   caisseId: string;
@@ -13,7 +23,7 @@ export class CreateTransactionDto {
   @ApiProperty({
     enum: TransactionType,
     description: 'Type of transaction',
-    example: 'INCOME'
+    example: 'INCOME',
   })
   @IsEnum(TransactionType)
   type: TransactionType;
@@ -22,7 +32,7 @@ export class CreateTransactionDto {
     enum: ExpenseCategory,
     description: 'Category for expenses',
     required: false,
-    example: 'OFFICE_RENT'
+    example: 'OFFICE_RENT',
   })
   @IsOptional()
   @IsEnum(ExpenseCategory)
@@ -31,14 +41,14 @@ export class CreateTransactionDto {
   @ApiProperty({
     description: 'Transaction amount',
     minimum: 0,
-    example: 150.00
+    example: 150.0,
   })
   @IsNumber()
   amount: number;
 
   @ApiProperty({
     description: 'Transaction description',
-    example: 'Payment for visa application services'
+    example: 'Payment for visa application services',
   })
   @IsString()
   description: string;
@@ -46,7 +56,7 @@ export class CreateTransactionDto {
   @ApiProperty({
     description: 'Reference (payment ID, client name, etc.)',
     required: false,
-    example: 'Payment for John Doe'
+    example: 'Payment for John Doe',
   })
   @IsOptional()
   @IsString()
@@ -55,7 +65,7 @@ export class CreateTransactionDto {
   @ApiProperty({
     enum: TransactionStatus,
     description: 'Transaction status',
-    default: 'PENDING'
+    default: 'PENDING',
   })
   @IsOptional()
   @IsEnum(TransactionStatus)
@@ -63,7 +73,7 @@ export class CreateTransactionDto {
 
   @ApiProperty({
     description: 'Transaction date',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsDateString()
@@ -71,9 +81,25 @@ export class CreateTransactionDto {
 
   @ApiProperty({
     description: 'Related payment ID',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsString()
   paymentId?: string;
+
+  @ApiProperty({
+    description: 'Related dossier ID',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  dossierId?: string;
+
+  @ApiProperty({
+    description: 'Related employee ID',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  employeeId?: string;
 }

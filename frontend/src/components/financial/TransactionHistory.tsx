@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -20,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { financialAPI } from "@/lib/api";
+import { financialAPI, dossiersAPI, employeesAPI } from "@/lib/api";
 import { toast } from "sonner";
 import { ArrowUpRight, ArrowDownRight, DollarSign, Plus } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
@@ -43,6 +44,15 @@ interface Transaction {
     dossier: {
       dossierId: string;
     };
+  };
+  dossier?: {
+    dossierId: string;
+    client: {
+      fullName: string;
+    };
+  };
+  employee?: {
+    fullName: string;
   };
 }
 
@@ -70,15 +80,34 @@ export function TransactionHistory() {
   const [formData, setFormData] = useState({
     caisseId: "",
     type: "EXPENSE" as "INCOME" | "EXPENSE",
-    category: "",
+    category: "none",
     amount: 0,
     description: "",
     reference: "",
+    addToVirtualCaisse: false,
+    dossierId: "none",
+    employeeId: "none",
   });
+
+  const [dossiers, setDossiers] = useState<
+    Array<{
+      id: string;
+      dossierId: string;
+      client: { fullName: string };
+    }>
+  >([]);
+  const [employees, setEmployees] = useState<
+    Array<{
+      id: string;
+      fullName: string;
+    }>
+  >([]);
 
   useEffect(() => {
     loadTransactions();
     loadCaisses();
+    loadDossiers();
+    loadEmployees();
   }, []);
 
   const loadCaisses = async () => {
@@ -87,6 +116,24 @@ export function TransactionHistory() {
       setCaisses(data);
     } catch (error) {
       console.error("Error loading caisses:", error);
+    }
+  };
+
+  const loadDossiers = async () => {
+    try {
+      const data = await dossiersAPI.getAll();
+      setDossiers(data);
+    } catch (error) {
+      console.error("Error loading dossiers:", error);
+    }
+  };
+
+  const loadEmployees = async () => {
+    try {
+      const data = await employeesAPI.getAll();
+      setEmployees(data);
+    } catch (error) {
+      console.error("Error loading employees:", error);
     }
   };
 
@@ -101,24 +148,53 @@ export function TransactionHistory() {
     }
   };
 
+  // Calculate totals excluding virtual caisse (only cash and bank account caisses)
   const totalIncome = transactions
-    .filter((t) => t.type === "INCOME" && t.status === "APPROVED")
+    .filter(
+      (t) =>
+        t.type === "INCOME" &&
+        t.status === "APPROVED" &&
+        t.caisse.type !== "VIRTUAL"
+    )
     .reduce((sum, t) => sum + Number(t.amount), 0);
 
   const totalExpenses = transactions
-    .filter((t) => t.type === "EXPENSE" && t.status === "APPROVED")
+    .filter(
+      (t) =>
+        t.type === "EXPENSE" &&
+        t.status === "APPROVED" &&
+        t.caisse.type !== "VIRTUAL"
+    )
+    .reduce((sum, t) => sum + Number(t.amount), 0);
+
+  // Calculate tax from virtual caisse only (all virtual caisse expenses)
+  const virtualCaisseTax = transactions
+    .filter(
+      (t) =>
+        t.type === "EXPENSE" &&
+        t.status === "APPROVED" &&
+        t.caisse.type === "VIRTUAL"
+    )
     .reduce((sum, t) => sum + Number(t.amount), 0);
 
   const resetForm = () => {
     setFormData({
       caisseId: "",
       type: "EXPENSE",
-      category: "",
+      category: "none",
       amount: 0,
       description: "",
       reference: "",
+      addToVirtualCaisse: false,
+      dossierId: "none",
+      employeeId: "none",
     });
   };
+
+  // Get the currently selected caisse for UI logic
+  const selectedCaisse = caisses.find(
+    (caisse) => caisse.id === formData.caisseId
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,15 +205,62 @@ export function TransactionHistory() {
     }
 
     try {
-      await financialAPI.createTransaction({
+      // Create main transaction
+      const mainTransaction = await financialAPI.createTransaction({
         caisseId: formData.caisseId,
         type: formData.type,
-        category: formData.category || undefined,
+        category:
+          formData.category === "none"
+            ? undefined
+            : formData.category || undefined,
         amount: formData.amount,
         description: formData.description,
         reference: formData.reference || undefined,
         transactionDate: new Date().toISOString(),
+        dossierId:
+          formData.dossierId === "none"
+            ? undefined
+            : formData.dossierId || undefined,
+        employeeId:
+          formData.employeeId === "none"
+            ? undefined
+            : formData.employeeId || undefined,
       });
+
+      // Create virtual caisse transaction if:
+      // 1. addToVirtualCaisse is checked, OR
+      // 2. the selected caisse is a bank account
+      const shouldCreateVirtualTransaction =
+        formData.addToVirtualCaisse ||
+        (selectedCaisse && selectedCaisse.type === "BANK_ACCOUNT");
+
+      if (shouldCreateVirtualTransaction) {
+        const virtualCaisse = caisses.find(
+          (caisse) => caisse.type === "VIRTUAL"
+        );
+        if (virtualCaisse) {
+          await financialAPI.createTransaction({
+            caisseId: virtualCaisse.id,
+            type: formData.type,
+            category:
+              formData.category === "none"
+                ? undefined
+                : formData.category || undefined,
+            amount: formData.amount,
+            description: `${formData.description} (Virtuel)`,
+            reference: formData.reference || undefined,
+            transactionDate: new Date().toISOString(),
+            dossierId:
+              formData.dossierId === "none"
+                ? undefined
+                : formData.dossierId || undefined,
+            employeeId:
+              formData.employeeId === "none"
+                ? undefined
+                : formData.employeeId || undefined,
+          });
+        }
+      }
 
       toast.success("Transaction créée avec succès");
       setDialogOpen(false);
@@ -224,9 +347,11 @@ export function TransactionHistory() {
                     <SelectValue placeholder="Sélectionner une catégorie" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">Aucune catégorie</SelectItem>
                     <SelectItem value="OFFICE_RENT">Loyer de bureau</SelectItem>
                     <SelectItem value="UTILITIES">Services publics</SelectItem>
                     <SelectItem value="SALARIES">Salaires</SelectItem>
+                    <SelectItem value="COMMISSIONS">Commissions</SelectItem>
                     <SelectItem value="OFFICE_SUPPLIES">
                       Fournitures de bureau
                     </SelectItem>
@@ -278,6 +403,79 @@ export function TransactionHistory() {
                 />
               </div>
 
+              <div>
+                <Label htmlFor="dossierId">Dossier (optionnel)</Label>
+                <Select
+                  value={formData.dossierId}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, dossierId: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un dossier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Aucun dossier</SelectItem>
+                    {dossiers.map((dossier) => (
+                      <SelectItem key={dossier.id} value={dossier.id}>
+                        {dossier.dossierId}
+                        {dossier.client && <> - {dossier.client.fullName}</>}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {(formData.category === "SALARIES" ||
+                formData.category === "COMMISSIONS") && (
+                <div>
+                  <Label htmlFor="employeeId">Employé</Label>
+                  <Select
+                    value={formData.employeeId}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, employeeId: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner un employé" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Aucun employé</SelectItem>
+                      {employees.map((employee) => (
+                        <SelectItem key={employee.id} value={employee.id}>
+                          {employee.fullName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="addToVirtualCaisse"
+                  checked={
+                    formData.addToVirtualCaisse ||
+                    (selectedCaisse && selectedCaisse.type === "BANK_ACCOUNT")
+                  }
+                  disabled={
+                    selectedCaisse && selectedCaisse.type === "BANK_ACCOUNT"
+                  }
+                  onCheckedChange={(checked) =>
+                    setFormData({
+                      ...formData,
+                      addToVirtualCaisse: checked as boolean,
+                    })
+                  }
+                />
+                <Label htmlFor="addToVirtualCaisse">
+                  Ajouter à la caisse virtuelle
+                </Label>
+                <p className="text-xs text-muted-foreground ml-2">
+                  (Automatique pour les comptes bancaires)
+                </p>
+              </div>
+
               <div className="flex justify-end gap-2">
                 <Button
                   type="button"
@@ -297,7 +495,7 @@ export function TransactionHistory() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -305,6 +503,9 @@ export function TransactionHistory() {
                 <p className="text-sm font-medium text-green-600">Revenus</p>
                 <p className="text-2xl font-bold text-green-600">
                   {formatCurrency(totalIncome)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  (Cash + Bancaire)
                 </p>
               </div>
               <ArrowUpRight className="h-8 w-8 text-green-600" />
@@ -319,8 +520,29 @@ export function TransactionHistory() {
                 <p className="text-2xl font-bold text-red-600">
                   {formatCurrency(totalExpenses)}
                 </p>
+                <p className="text-xs text-muted-foreground">
+                  (Cash + Bancaire)
+                </p>
               </div>
               <ArrowDownRight className="h-8 w-8 text-red-600" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-purple-600">
+                  Taxes (Virtuel)
+                </p>
+                <p className="text-2xl font-bold text-purple-600">
+                  {formatCurrency(virtualCaisseTax)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  (Dépenses Caisse Virtuelle)
+                </p>
+              </div>
+              <DollarSign className="h-8 w-8 text-purple-600" />
             </div>
           </CardContent>
         </Card>
@@ -337,6 +559,9 @@ export function TransactionHistory() {
                   }`}
                 >
                   {formatCurrency(totalIncome - totalExpenses)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  (Revenus - Dépenses)
                 </p>
               </div>
             </div>
@@ -360,48 +585,102 @@ export function TransactionHistory() {
             </CardContent>
           </Card>
         ) : (
-          transactions.map((transaction) => (
-            <Card key={transaction.id}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    {transaction.type === "INCOME" ? (
-                      <ArrowUpRight className="w-5 h-5 text-green-600" />
-                    ) : (
-                      <ArrowDownRight className="w-5 h-5 text-red-600" />
-                    )}
-                    <div>
-                      <p className="font-medium">{transaction.description}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {transaction.caisse.name} •{" "}
-                        {new Date(
-                          transaction.transactionDate
-                        ).toLocaleDateString("fr-FR")}
-                      </p>
-                      {transaction.payment && (
-                        <p className="text-sm text-muted-foreground">
-                          Dossier: {transaction.payment.dossier.dossierId}
-                        </p>
+          transactions.map((transaction) => {
+            const isVirtualCaisse = transaction.caisse.type === "VIRTUAL";
+
+            return (
+              <Card
+                key={transaction.id}
+                className={`${
+                  isVirtualCaisse
+                    ? "border-2 border-purple-300 bg-purple-50/50 shadow-md"
+                    : ""
+                }`}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      {transaction.type === "INCOME" ? (
+                        <ArrowUpRight
+                          className={`w-5 h-5 ${
+                            isVirtualCaisse
+                              ? "text-purple-600"
+                              : "text-green-600"
+                          }`}
+                        />
+                      ) : (
+                        <ArrowDownRight
+                          className={`w-5 h-5 ${
+                            isVirtualCaisse ? "text-purple-600" : "text-red-600"
+                          }`}
+                        />
                       )}
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">
+                            {transaction.description}
+                          </p>
+                          {isVirtualCaisse && (
+                            <Badge
+                              variant="outline"
+                              className="text-purple-700 border-purple-300 bg-purple-100 text-xs"
+                            >
+                              VIRTUEL
+                            </Badge>
+                          )}
+                        </div>
+                        <p
+                          className={`text-sm ${
+                            isVirtualCaisse
+                              ? "text-purple-600"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {transaction.caisse.name} •{" "}
+                          {new Date(
+                            transaction.transactionDate
+                          ).toLocaleDateString("fr-FR")}
+                        </p>
+                        {transaction.payment && (
+                          <p className="text-sm text-muted-foreground">
+                            Dossier: {transaction.payment.dossier.dossierId}
+                          </p>
+                        )}
+                        {transaction.dossier && !transaction.payment && (
+                          <p className="text-sm text-muted-foreground">
+                            Dossier: {transaction.dossier.dossierId}
+                            {transaction.dossier.client && (
+                              <> - {transaction.dossier.client.fullName}</>
+                            )}
+                          </p>
+                        )}
+                        {transaction.employee && (
+                          <p className="text-sm text-muted-foreground">
+                            Employé: {transaction.employee.fullName}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p
+                        className={`font-bold ${
+                          isVirtualCaisse
+                            ? "text-purple-700"
+                            : transactionTypeColors[transaction.type]
+                        }`}
+                      >
+                        {transaction.type === "EXPENSE" ? "-" : "+"}
+                        {formatCurrency(transaction.amount)}
+                      </p>
+                      <Badge className={statusColors[transaction.status]}>
+                        {transaction.status}
+                      </Badge>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p
-                      className={`font-bold ${
-                        transactionTypeColors[transaction.type]
-                      }`}
-                    >
-                      {transaction.type === "EXPENSE" ? "-" : "+"}
-                      {formatCurrency(transaction.amount)}
-                    </p>
-                    <Badge className={statusColors[transaction.status]}>
-                      {transaction.status}
-                    </Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </div>
     </div>

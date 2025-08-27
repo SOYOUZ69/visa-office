@@ -25,4 +25,8 @@ export class DossierResponseDto {
   servicesCount?: number;
   paymentsCount?: number;
   assignedEmployees?: DossierEmployeeAssignmentDto[];
+  client?: {
+    id: string;
+    fullName: string;
+  } | null;
 }

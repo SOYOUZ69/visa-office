@@ -8,6 +8,7 @@ import {
   Delete,
   HttpStatus,
   HttpCode,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,9 +21,12 @@ import { EmployeeService } from './employee.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { Employee } from './entities/employee.entity';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
 @ApiTags('employees')
 @Controller('api/v1/employees')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class EmployeeController {
   constructor(private readonly employeeService: EmployeeService) {}
 
@@ -253,12 +257,22 @@ export class EmployeeController {
   })
   processSalary(
     @Param('id') employeeId: string,
-    @Body() body: { month: number; year: number },
+    @Body()
+    body: {
+      month: number;
+      year: number;
+      caisseId?: string;
+      addToVirtualCaisse?: boolean;
+    },
   ) {
     return this.employeeService.processSalary(
       employeeId,
       body.month,
       body.year,
+      {
+        caisseId: body.caisseId,
+        addToVirtualCaisse: body.addToVirtualCaisse,
+      },
     );
   }
 

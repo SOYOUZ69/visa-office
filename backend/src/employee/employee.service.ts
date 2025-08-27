@@ -621,7 +621,15 @@ export class EmployeeService {
   /**
    * Process employee salary for a specific month
    */
-  async processSalary(employeeId: string, month: number, year: number) {
+  async processSalary(
+    employeeId: string,
+    month: number,
+    year: number,
+    options?: {
+      caisseId?: string;
+      addToVirtualCaisse?: boolean;
+    },
+  ) {
     // Verify employee exists
     const employee = await this.prisma.employee.findUnique({
       where: { id: employeeId },
@@ -676,6 +684,32 @@ export class EmployeeService {
     // Calculate total amount
     const totalAmount = baseSalary + attendanceBonus - deductions;
 
+    // Get virtual caisse for virtual transactions
+    let virtualCaisse: any = null;
+    if (options?.addToVirtualCaisse) {
+      virtualCaisse = await this.prisma.caisse.findFirst({
+        where: { type: 'VIRTUAL', isActive: true },
+      });
+
+      if (!virtualCaisse) {
+        throw new BadRequestException(
+          'Virtual caisse not found. Please create a virtual caisse first.',
+        );
+      }
+    }
+
+    // Verify selected caisse exists if provided
+    let selectedCaisse: any = null;
+    if (options?.caisseId) {
+      selectedCaisse = await this.prisma.caisse.findUnique({
+        where: { id: options.caisseId, isActive: true },
+      });
+
+      if (!selectedCaisse) {
+        throw new BadRequestException('Selected caisse not found or inactive');
+      }
+    }
+
     // Create or update salary payment record
     const salaryPayment = await this.prisma.salaryPayment.upsert({
       where: {
@@ -704,23 +738,73 @@ export class EmployeeService {
       },
     });
 
-    // Create financial transaction for salary payment
-    const transaction = await this.prisma.transaction.create({
-      data: {
-        amount: totalAmount,
-        type: 'EXPENSE',
-        category: 'SALARIES',
-        description: `Salary payment for ${employee.fullName} - ${month}/${year}`,
-        caisseId: 'default-caisse-id', // You might want to make this configurable
-        status: 'COMPLETED',
-      },
-    });
+    // Create financial transactions
+    const transactions: any[] = [];
 
-    // Update salary payment with transaction ID
-    await this.prisma.salaryPayment.update({
-      where: { id: salaryPayment.id },
-      data: { transactionId: transaction.id },
-    });
+    // Create transaction for the selected caisse (if provided)
+    if (selectedCaisse) {
+      const mainTransaction = await this.prisma.transaction.create({
+        data: {
+          amount: totalAmount,
+          type: 'EXPENSE',
+          category: 'SALARIES',
+          description: `Salary payment for ${employee.fullName} - ${month}/${year}`,
+          caisseId: selectedCaisse.id,
+          status: 'PENDING',
+          reference: `Salary Payment ID: ${salaryPayment.id}`,
+        },
+      });
+      transactions.push(mainTransaction);
+    }
+
+    // Create virtual caisse transaction if requested
+    if (options?.addToVirtualCaisse && virtualCaisse) {
+      const virtualTransaction = await this.prisma.transaction.create({
+        data: {
+          amount: totalAmount,
+          type: 'EXPENSE',
+          category: 'SALARIES',
+          description: `Virtual salary payment for ${employee.fullName} - ${month}/${year}`,
+          caisseId: virtualCaisse.id,
+          status: 'PENDING',
+          reference: `Virtual Salary Payment ID: ${salaryPayment.id}`,
+        },
+      });
+      transactions.push(virtualTransaction);
+    }
+
+    // If no caisse was selected and virtual caisse is not requested, use default
+    if (!selectedCaisse && !options?.addToVirtualCaisse) {
+      const defaultCaisse = await this.prisma.caisse.findFirst({
+        where: { type: 'CASH', isActive: true },
+      });
+
+      if (defaultCaisse) {
+        const defaultTransaction = await this.prisma.transaction.create({
+          data: {
+            amount: totalAmount,
+            type: 'EXPENSE',
+            category: 'SALARIES',
+            description: `Salary payment for ${employee.fullName} - ${month}/${year}`,
+            caisseId: defaultCaisse.id,
+            status: 'PENDING',
+            reference: `Salary Payment ID: ${salaryPayment.id}`,
+          },
+        });
+        transactions.push(defaultTransaction);
+      }
+    }
+
+    // Update salary payment with transaction IDs
+    if (transactions.length > 0) {
+      await this.prisma.salaryPayment.update({
+        where: { id: salaryPayment.id },
+        data: {
+          transactionId: transactions[0].id,
+          // Store additional transaction IDs if needed
+        },
+      });
+    }
 
     return {
       employeeId,
@@ -731,8 +815,10 @@ export class EmployeeService {
       attendanceBonus,
       deductions,
       totalAmount,
-      transactionId: transaction.id,
+      transactionIds: transactions.map((t) => t.id),
       processed: true,
+      caisseUsed: selectedCaisse?.name || 'Default',
+      virtualCaisseUsed: options?.addToVirtualCaisse || false,
     };
   }
 }

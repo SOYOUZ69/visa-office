@@ -313,6 +313,7 @@ model Dossier {
   payments                  Payment[]
   EmployeeCommission        EmployeeCommission[]
   DossierEmployeeAssignment DossierEmployeeAssignment[]
+  transactions              Transaction[]
 
   @@map("dossiers")
 }
@@ -409,6 +410,10 @@ model Transaction {
   // Relations
   paymentId String?
   payment   Payment? @relation(fields: [paymentId], references: [id])
+  dossierId String?
+  dossier   Dossier? @relation(fields: [dossierId], references: [id])
+  employeeId String?
+  employee  Employee? @relation(fields: [employeeId], references: [id])
 
   @@map("transactions")
 }
@@ -453,6 +458,7 @@ model Employee {
   auditLogs                 AuditLog[]
 
   Dossier          Dossier[]
+  transactions     Transaction[]
 
   @@map("employees")
 }

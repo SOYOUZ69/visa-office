@@ -246,11 +246,20 @@ export function FinancialDashboard() {
 
   const latestReport = reports[0];
 
-  // Calculate current totals from caisses
-  const totalCaisseBalance = caisses.reduce(
-    (sum, caisse) => sum + parseFloat(caisse.balance),
-    0
-  );
+  // Calculate current totals from caisses (excluding virtual caisse for balance calculations)
+  const totalCaisseBalance = caisses
+    .filter((caisse) => caisse.type !== "VIRTUAL")
+    .reduce((sum, caisse) => sum + parseFloat(caisse.balance), 0);
+
+  // Calculate virtual caisse balance separately for tax purposes
+  const virtualCaisseBalance = caisses
+    .filter((caisse) => caisse.type === "VIRTUAL")
+    .reduce((sum, caisse) => sum + parseFloat(caisse.balance), 0);
+
+  // Count active caisses (excluding virtual for operational purposes)
+  const activeCaissesCount = caisses.filter(
+    (caisse) => caisse.type !== "VIRTUAL"
+  ).length;
 
   if (loading) {
     return (
@@ -456,7 +465,7 @@ export function FinancialDashboard() {
               {statistics && (
                 <div className="space-y-6">
                   {/* Statistics Summary Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
                     <Card>
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">
@@ -469,7 +478,7 @@ export function FinancialDashboard() {
                           {formatCurrency(statistics.revenue)}
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          From approved transactions only
+                          Cash + Bancaires (excl. Virtuel)
                         </p>
                       </CardContent>
                     </Card>
@@ -486,7 +495,24 @@ export function FinancialDashboard() {
                           {formatCurrency(statistics.expenses)}
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          From approved transactions only
+                          Cash + Bancaires (excl. Virtuel)
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">
+                          Taxes (Virtuel)
+                        </CardTitle>
+                        <DollarSign className="h-4 w-4 text-purple-600" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold text-purple-600">
+                          {formatCurrency(statistics.virtualCaisseTax)}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Caisse Virtuelle uniquement
                         </p>
                       </CardContent>
                     </Card>
@@ -519,10 +545,10 @@ export function FinancialDashboard() {
                         <CardTitle className="text-sm font-medium">
                           Transactions
                         </CardTitle>
-                        <BarChart3 className="h-4 w-4 text-purple-600" />
+                        <BarChart3 className="h-4 w-4 text-orange-600" />
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-bold text-purple-600">
+                        <div className="text-2xl font-bold text-orange-600">
                           {statistics.transactionCounts.total}
                         </div>
                         <p className="text-xs text-muted-foreground">
@@ -640,11 +666,11 @@ export function FinancialDashboard() {
       )}
 
       {/* Current Balance Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Solde Total des Caisses
+              Solde Opérationnel
             </CardTitle>
             <DollarSign className="h-4 w-4 text-blue-600" />
           </CardHeader>
@@ -653,7 +679,7 @@ export function FinancialDashboard() {
               {formatCurrency(totalCaisseBalance)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Solde actuel de toutes les caisses
+              Cash + Comptes Bancaires
             </p>
           </CardContent>
         </Card>
@@ -661,15 +687,32 @@ export function FinancialDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Nombre de Caisses
+              Caisse Virtuelle
             </CardTitle>
-            <BarChart3 className="h-4 w-4 text-purple-600" />
+            <DollarSign className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">
-              {caisses.length}
+              {formatCurrency(virtualCaisseBalance)}
             </div>
-            <p className="text-xs text-muted-foreground">Caisses actives</p>
+            <p className="text-xs text-muted-foreground">
+              Pour taxes et charges
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Caisses Opérationnelles
+            </CardTitle>
+            <BarChart3 className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {activeCaissesCount}
+            </div>
+            <p className="text-xs text-muted-foreground">Cash + Bancaires</p>
           </CardContent>
         </Card>
 

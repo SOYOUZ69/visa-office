@@ -36,6 +36,7 @@ export class DossiersService {
   async findAll(): Promise<DossierResponseDto[]> {
     const dossiers = await this.prisma.dossier.findMany({
       include: {
+        client: true,
         serviceItems: true,
         payments: true,
         DossierEmployeeAssignment: {
@@ -63,6 +64,7 @@ export class DossiersService {
     const dossiers = await this.prisma.dossier.findMany({
       where: { clientId },
       include: {
+        client: true,
         serviceItems: true,
         payments: true,
         DossierEmployeeAssignment: {
@@ -191,6 +193,7 @@ export class DossiersService {
       servicesCount: dossier.serviceItems?.length || 0,
       paymentsCount: dossier.payments?.length || 0,
       assignedEmployees: dossier.DossierEmployeeAssignment || [],
+      client: dossier.client || null,
     };
   }
   async assignEmployee(dossierId: string, employeeId: string, role?: string) {

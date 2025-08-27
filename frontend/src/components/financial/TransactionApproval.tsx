@@ -26,6 +26,7 @@ interface Transaction {
   createdAt: string;
   caisse: {
     name: string;
+    type: string;
   };
   payment?: {
     dossier: {
@@ -151,57 +152,86 @@ export function TransactionApproval() {
             </div>
           ) : (
             <div className="space-y-4">
-              {transactions.map((transaction) => (
-                <Card key={transaction.id} className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        {getTypeBadge(transaction.type)}
-                        {getStatusBadge(transaction.status)}
-                      </div>
-                      <h3 className="font-semibold">
-                        {transaction.description}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        Caisse: {transaction.caisse.name}
-                      </p>
-                      {transaction.payment && (
-                        <p className="text-sm text-muted-foreground">
-                          Dossier: {transaction.payment.dossier.dossierId}
+              {transactions.map((transaction) => {
+                const isVirtualCaisse = transaction.caisse.type === "VIRTUAL";
+
+                return (
+                  <Card
+                    key={transaction.id}
+                    className={`p-4 ${
+                      isVirtualCaisse
+                        ? "border-2 border-purple-300 bg-purple-50/50 shadow-md"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          {getTypeBadge(transaction.type)}
+                          {getStatusBadge(transaction.status)}
+                          {isVirtualCaisse && (
+                            <Badge
+                              variant="outline"
+                              className="text-purple-700 border-purple-300 bg-purple-100 text-xs"
+                            >
+                              VIRTUEL
+                            </Badge>
+                          )}
+                        </div>
+                        <h3 className="font-semibold">
+                          {transaction.description}
+                        </h3>
+                        <p
+                          className={`text-sm ${
+                            isVirtualCaisse
+                              ? "text-purple-600"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          Caisse: {transaction.caisse.name}
                         </p>
-                      )}
-                      <p className="text-sm text-muted-foreground">
-                        Date:{" "}
-                        {new Date(
-                          transaction.transactionDate
-                        ).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-bold">
-                        {transaction.type === "INCOME" ? "+" : "-"}
-                        {transaction.amount.toLocaleString()} MAD
+                        {transaction.payment && (
+                          <p className="text-sm text-muted-foreground">
+                            Dossier: {transaction.payment.dossier.dossierId}
+                          </p>
+                        )}
+                        <p className="text-sm text-muted-foreground">
+                          Date:{" "}
+                          {new Date(
+                            transaction.transactionDate
+                          ).toLocaleDateString()}
+                        </p>
                       </div>
-                      <div className="flex gap-2 mt-2">
-                        <Button
-                          size="sm"
-                          onClick={() => approveTransaction(transaction.id)}
-                          className="bg-green-600 hover:bg-green-700"
+                      <div className="text-right">
+                        <div
+                          className={`text-lg font-bold ${
+                            isVirtualCaisse ? "text-purple-700" : ""
+                          }`}
                         >
-                          Approuver
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => openRejectDialog(transaction)}
-                        >
-                          Rejeter
-                        </Button>
+                          {transaction.type === "INCOME" ? "+" : "-"}
+                          {transaction.amount.toLocaleString()} MAD
+                        </div>
+                        <div className="flex gap-2 mt-2">
+                          <Button
+                            size="sm"
+                            onClick={() => approveTransaction(transaction.id)}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            Approuver
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => openRejectDialog(transaction)}
+                          >
+                            Rejeter
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
           )}
         </CardContent>

@@ -68,7 +68,14 @@ export class FinancialService {
 
   // Transaction Management
   async createTransaction(createTransactionDto: CreateTransactionDto) {
-    const { caisseId, amount, type, ...transactionData } = createTransactionDto;
+    const {
+      caisseId,
+      amount,
+      type,
+      dossierId,
+      employeeId,
+      ...transactionData
+    } = createTransactionDto;
 
     // Create the transaction with PENDING status
     const transaction = await this.prisma.transaction.create({
@@ -77,6 +84,8 @@ export class FinancialService {
         caisseId,
         amount,
         type,
+        dossierId: dossierId || null,
+        employeeId: employeeId || null,
         status: TransactionStatus.PENDING, // Always start as pending
       },
     });
@@ -116,6 +125,12 @@ export class FinancialService {
             },
           },
         },
+        dossier: {
+          include: {
+            client: true,
+          },
+        },
+        employee: true,
       },
       orderBy: { transactionDate: 'desc' },
     });
@@ -153,6 +168,12 @@ export class FinancialService {
             },
           },
         },
+        dossier: {
+          include: {
+            client: true,
+          },
+        },
+        employee: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -253,6 +274,12 @@ export class FinancialService {
             },
           },
         },
+        dossier: {
+          include: {
+            client: true,
+          },
+        },
+        employee: true,
       },
     });
 
@@ -286,6 +313,12 @@ export class FinancialService {
             },
           },
         },
+        dossier: {
+          include: {
+            client: true,
+          },
+        },
+        employee: true,
       },
     });
 
@@ -374,6 +407,12 @@ export class FinancialService {
             },
           },
         },
+        dossier: {
+          include: {
+            client: true,
+          },
+        },
+        employee: true,
       },
       orderBy: { transactionDate: 'desc' },
     });
@@ -383,13 +422,26 @@ export class FinancialService {
       (t) => t.status === TransactionStatus.APPROVED,
     );
 
-    // Calculate revenue and expenses from approved transactions only
+    // Calculate revenue and expenses from approved transactions only (excluding virtual caisse)
     const revenue = approvedTransactions
-      .filter((t) => t.type === TransactionType.INCOME)
+      .filter(
+        (t) => t.type === TransactionType.INCOME && t.caisse.type !== 'VIRTUAL',
+      )
       .reduce((sum, t) => sum + Number(t.amount), 0);
 
     const expenses = approvedTransactions
-      .filter((t) => t.type === TransactionType.EXPENSE)
+      .filter(
+        (t) =>
+          t.type === TransactionType.EXPENSE && t.caisse.type !== 'VIRTUAL',
+      )
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    // Calculate tax from virtual caisse only
+    const virtualCaisseTax = approvedTransactions
+      .filter(
+        (t) =>
+          t.type === TransactionType.EXPENSE && t.caisse.type === 'VIRTUAL',
+      )
       .reduce((sum, t) => sum + Number(t.amount), 0);
 
     // Get transaction counts by status
@@ -406,6 +458,7 @@ export class FinancialService {
     return {
       revenue: Number(revenue.toFixed(2)),
       expenses: Number(expenses.toFixed(2)),
+      virtualCaisseTax: Number(virtualCaisseTax.toFixed(2)),
       netProfit: Number((revenue - expenses).toFixed(2)),
       transactionCounts: {
         total: allTransactions.length,

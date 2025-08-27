@@ -470,10 +470,23 @@ export const employeesAPI = {
     );
     return response.data;
   },
-  processSalary: async (employeeId: string, month: number, year: number) => {
+  processSalary: async (
+    employeeId: string, 
+    month: number, 
+    year: number,
+    options?: {
+      caisseId?: string;
+      addToVirtualCaisse?: boolean;
+    }
+  ) => {
     const response = await api.post(
       `/api/v1/employees/${employeeId}/salary/process`,
-      { month, year }
+      { 
+        month, 
+        year,
+        caisseId: options?.caisseId,
+        addToVirtualCaisse: options?.addToVirtualCaisse,
+      }
     );
     return response.data;
   },
