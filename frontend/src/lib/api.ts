@@ -471,8 +471,8 @@ export const employeesAPI = {
     return response.data;
   },
   processSalary: async (
-    employeeId: string, 
-    month: number, 
+    employeeId: string,
+    month: number,
     year: number,
     options?: {
       caisseId?: string;
@@ -481,8 +481,8 @@ export const employeesAPI = {
   ) => {
     const response = await api.post(
       `/api/v1/employees/${employeeId}/salary/process`,
-      { 
-        month, 
+      {
+        month,
         year,
         caisseId: options?.caisseId,
         addToVirtualCaisse: options?.addToVirtualCaisse,
@@ -508,6 +508,12 @@ export const employeesAPI = {
   // Employee statistics
   getEmployeesWithStats: async () => {
     const response = await api.get("/api/v1/employees/stats/overview");
+    return response.data;
+  },
+  getSalaryStatus: async (employeeId: string, month: number, year: number) => {
+    const response = await api.get(
+      `/api/v1/employees/${employeeId}/salary-status/${month}/${year}`
+    );
     return response.data;
   },
 };
@@ -536,9 +542,12 @@ export const adminAPI = {
     return response.data;
   },
   updateRolePermissions: async (roleId: string, permissionIds: string[]) => {
-    const response = await api.put(`/api/v1/admin/roles/${roleId}/permissions`, {
-      permissionIds
-    });
+    const response = await api.put(
+      `/api/v1/admin/roles/${roleId}/permissions`,
+      {
+        permissionIds,
+      }
+    );
     return response.data;
   },
 
@@ -571,7 +580,7 @@ export const adminAPI = {
   },
   updateUserRole: async (userId: string, roleId: string) => {
     const response = await api.put(`/api/v1/admin/users/${userId}/role`, {
-      roleId
+      roleId,
     });
     return response.data;
   },

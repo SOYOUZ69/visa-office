@@ -17,10 +17,19 @@ export class EmployeeService {
   async create(createEmployeeDto: CreateEmployeeDto): Promise<Employee> {
     const data: Prisma.EmployeeCreateInput = {
       fullName: createEmployeeDto.fullName,
+      email: createEmployeeDto.email,
+      department: createEmployeeDto.department,
+      hireDate: createEmployeeDto.hireDate
+        ? new Date(createEmployeeDto.hireDate)
+        : undefined,
       salaryType: createEmployeeDto.salaryType,
       salaryAmount: new Prisma.Decimal(createEmployeeDto.salaryAmount),
       commissionPercentage: createEmployeeDto.commissionPercentage,
       soldeCoungiee: new Prisma.Decimal(createEmployeeDto.soldeCoungiee || 0),
+      isActive:
+        createEmployeeDto.isActive !== undefined
+          ? createEmployeeDto.isActive
+          : true,
     };
 
     const created = await this.prisma.employee.create({
@@ -65,6 +74,18 @@ export class EmployeeService {
       data.fullName = updateEmployeeDto.fullName;
     }
 
+    if (updateEmployeeDto.email !== undefined) {
+      data.email = updateEmployeeDto.email;
+    }
+
+    if (updateEmployeeDto.department !== undefined) {
+      data.department = updateEmployeeDto.department;
+    }
+
+    if (updateEmployeeDto.hireDate !== undefined) {
+      data.hireDate = new Date(updateEmployeeDto.hireDate);
+    }
+
     if (updateEmployeeDto.soldeCoungiee !== undefined) {
       data.soldeCoungiee = new Prisma.Decimal(
         updateEmployeeDto.soldeCoungiee as unknown as string | number,
@@ -83,6 +104,10 @@ export class EmployeeService {
 
     if (updateEmployeeDto.commissionPercentage !== undefined) {
       data.commissionPercentage = updateEmployeeDto.commissionPercentage;
+    }
+
+    if (updateEmployeeDto.isActive !== undefined) {
+      data.isActive = updateEmployeeDto.isActive;
     }
 
     try {
@@ -819,6 +844,47 @@ export class EmployeeService {
       processed: true,
       caisseUsed: selectedCaisse?.name || 'Default',
       virtualCaisseUsed: options?.addToVirtualCaisse || false,
+    };
+  }
+
+  async getSalaryStatus(employeeId: string, month: number, year: number) {
+    // Verify employee exists
+    const employee = await this.prisma.employee.findUnique({
+      where: { id: employeeId },
+    });
+
+    if (!employee) {
+      throw new NotFoundException(`Employee with ID ${employeeId} not found`);
+    }
+
+    // Check if salary already processed for this month
+    const existingSalaryPayment = await this.prisma.salaryPayment.findUnique({
+      where: {
+        employeeId_month_year: {
+          employeeId,
+          month,
+          year,
+        },
+      },
+    });
+
+    return {
+      employeeId,
+      employeeName: employee.fullName,
+      month,
+      year,
+      isProcessed: existingSalaryPayment?.processed || false,
+      salaryPayment: existingSalaryPayment
+        ? {
+            id: existingSalaryPayment.id,
+            baseSalary: Number(existingSalaryPayment.baseSalary),
+            attendanceBonus: Number(existingSalaryPayment.attendanceBonus),
+            deductions: Number(existingSalaryPayment.deductions),
+            totalAmount: Number(existingSalaryPayment.totalAmount),
+            processed: existingSalaryPayment.processed,
+            createdAt: existingSalaryPayment.createdAt,
+          }
+        : null,
     };
   }
 }

@@ -22,11 +22,11 @@ import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { Employee } from './entities/employee.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { PermissionGuard } from '../auth/guards/permission.guard';
 
 @ApiTags('employees')
 @Controller('api/v1/employees')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 export class EmployeeController {
   constructor(private readonly employeeService: EmployeeService) {}
 
@@ -306,5 +306,30 @@ export class EmployeeController {
   })
   getEmployeesWithStats() {
     return this.employeeService.getEmployeesWithStats();
+  }
+
+  @Get(':id/salary-status/:month/:year')
+  @ApiOperation({ summary: 'Check if salary is already processed for a month' })
+  @ApiParam({ name: 'id', description: 'Employee ID' })
+  @ApiParam({ name: 'month', description: 'Month (1-12)' })
+  @ApiParam({ name: 'year', description: 'Year' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Salary status retrieved successfully',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Employee not found',
+  })
+  getSalaryStatus(
+    @Param('id') employeeId: string,
+    @Param('month') month: string,
+    @Param('year') year: string,
+  ) {
+    return this.employeeService.getSalaryStatus(
+      employeeId,
+      parseInt(month),
+      parseInt(year),
+    );
   }
 }

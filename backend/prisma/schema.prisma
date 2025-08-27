@@ -121,13 +121,13 @@ enum DossierStatus {
 
 // Système de rôles dynamique
 model Role {
-  id             String   @id @default(cuid())
-  name           String   @unique
-  description    String?
-  isSystemRole   Boolean  @default(false)
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id           String   @id @default(cuid())
+  name         String   @unique
+  description  String?
+  isSystemRole Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Relations
   users       User[]
@@ -151,11 +151,11 @@ model Permission {
 }
 
 model RolePermission {
-  id           String    @id @default(cuid())
+  id           String   @id @default(cuid())
   roleId       String
   permissionId String
   grantedBy    String?
-  grantedAt    DateTime  @default(now())
+  grantedAt    DateTime @default(now())
 
   // Relations
   role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
@@ -167,16 +167,16 @@ model RolePermission {
 }
 
 model User {
-  id        String    @id @default(cuid())
-  email     String    @unique
+  id        String   @id @default(cuid())
+  email     String   @unique
   password  String
   roleId    String?
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  role               Role?               @relation(fields: [roleId], references: [id])
+  role               Role?            @relation(fields: [roleId], references: [id])
   employee           Employee?
   sessions           UserSession[]
   auditLogs          AuditLog[]
@@ -186,14 +186,14 @@ model User {
 }
 
 model UserSession {
-  id           String    @id @default(cuid())
+  id           String   @id @default(cuid())
   userId       String
   tokenHash    String
   ipAddress    String?
   userAgent    String?
   expiresAt    DateTime
-  lastActivity DateTime  @default(now())
-  createdAt    DateTime  @default(now())
+  lastActivity DateTime @default(now())
+  createdAt    DateTime @default(now())
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -202,7 +202,7 @@ model UserSession {
 }
 
 model AuditLog {
-  id           String    @id @default(cuid())
+  id           String   @id @default(cuid())
   userId       String?
   employeeId   String?
   action       String
@@ -212,7 +212,7 @@ model AuditLog {
   newValues    Json?
   ipAddress    String?
   userAgent    String?
-  createdAt    DateTime  @default(now())
+  createdAt    DateTime @default(now())
 
   // Relations
   user     User?     @relation(fields: [userId], references: [id])
@@ -408,12 +408,12 @@ model Transaction {
   updatedAt       DateTime          @updatedAt
 
   // Relations
-  paymentId String?
-  payment   Payment? @relation(fields: [paymentId], references: [id])
-  dossierId String?
-  dossier   Dossier? @relation(fields: [dossierId], references: [id])
+  paymentId  String?
+  payment    Payment?  @relation(fields: [paymentId], references: [id])
+  dossierId  String?
+  dossier    Dossier?  @relation(fields: [dossierId], references: [id])
   employeeId String?
-  employee  Employee? @relation(fields: [employeeId], references: [id])
+  employee   Employee? @relation(fields: [employeeId], references: [id])
 
   @@map("transactions")
 }
@@ -444,21 +444,21 @@ model Employee {
   salaryType           SalaryType
   salaryAmount         Decimal    @db.Decimal(10, 2)
   commissionPercentage String
-  soldeCoungiee        Decimal    @db.Decimal(10, 2) @default(0)
+  soldeCoungiee        Decimal    @default(0) @db.Decimal(10, 2)
   isActive             Boolean    @default(true)
   createdAt            DateTime   @default(now())
   updatedAt            DateTime   @updatedAt
 
   // Relations
-  user                      User?                       @relation(fields: [userId], references: [id])
-  assignedDossiers          DossierEmployeeAssignment[]
-  attendance                Attendance[]
-  commissions               EmployeeCommission[]
-  salaryPayments            SalaryPayment[]
-  auditLogs                 AuditLog[]
+  user             User?                       @relation(fields: [userId], references: [id])
+  assignedDossiers DossierEmployeeAssignment[]
+  attendance       Attendance[]
+  commissions      EmployeeCommission[]
+  salaryPayments   SalaryPayment[]
+  auditLogs        AuditLog[]
 
-  Dossier          Dossier[]
-  transactions     Transaction[]
+  Dossier      Dossier[]
+  transactions Transaction[]
 
   @@map("employees")
 }

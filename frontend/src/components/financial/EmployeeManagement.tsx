@@ -28,10 +28,14 @@ import { CalendarIcon, Calculator, Check, DollarSign } from "lucide-react";
 interface Employee {
   id: string;
   fullName: string;
+  email?: string;
+  department?: string;
+  hireDate?: string;
   salaryType: "MONTHLY" | "CLIENTCOMMISSION" | "PERIODCOMMISSION";
   salaryAmount: number;
   commissionPercentage: string;
   soldeCoungiee: number;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
   calculatedCommission?: number;
@@ -44,6 +48,9 @@ export function EmployeeManagement() {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState({
     fullName: "",
+    email: "",
+    department: "",
+    hireDate: "",
     salaryType: "MONTHLY" as
       | "MONTHLY"
       | "CLIENTCOMMISSION"
@@ -51,11 +58,14 @@ export function EmployeeManagement() {
     salaryAmount: "",
     commissionPercentage: "",
     soldeCoungiee: "0",
+    isActive: true,
   });
 
   // Salary processing state
   const [salaryDialogOpen, setSalaryDialogOpen] = useState(false);
-  const [processingEmployee, setProcessingEmployee] = useState<Employee | null>(null);
+  const [processingEmployee, setProcessingEmployee] = useState<Employee | null>(
+    null
+  );
   const [caisses, setCaisses] = useState<any[]>([]);
   const [salaryFormData, setSalaryFormData] = useState({
     month: new Date().getMonth() + 1,
@@ -63,6 +73,7 @@ export function EmployeeManagement() {
     caisseId: "",
     addToVirtualCaisse: false,
   });
+  const [salaryStatus, setSalaryStatus] = useState<any>(null);
 
   useEffect(() => {
     loadEmployees();
@@ -95,10 +106,14 @@ export function EmployeeManagement() {
   const resetForm = () => {
     setFormData({
       fullName: "",
+      email: "",
+      department: "",
+      hireDate: "",
       salaryType: "MONTHLY",
       salaryAmount: "",
       commissionPercentage: "",
       soldeCoungiee: "0",
+      isActive: true,
     });
     setEditingEmployee(null);
   };
@@ -112,10 +127,16 @@ export function EmployeeManagement() {
     setEditingEmployee(employee);
     setFormData({
       fullName: employee.fullName,
+      email: employee.email || "",
+      department: employee.department || "",
+      hireDate: employee.hireDate
+        ? new Date(employee.hireDate).toISOString().split("T")[0]
+        : "",
       salaryType: employee.salaryType,
       salaryAmount: employee.salaryAmount.toString(),
       commissionPercentage: employee.commissionPercentage,
       soldeCoungiee: employee.soldeCoungiee.toString(),
+      isActive: employee.isActive,
     });
     setDialogOpen(true);
   };
@@ -135,10 +156,14 @@ export function EmployeeManagement() {
     try {
       const data = {
         fullName: formData.fullName,
+        email: formData.email || undefined,
+        department: formData.department || undefined,
+        hireDate: formData.hireDate || undefined,
         salaryType: formData.salaryType,
         salaryAmount: parseFloat(formData.salaryAmount),
         commissionPercentage: formData.commissionPercentage,
         soldeCoungiee: parseFloat(formData.soldeCoungiee),
+        isActive: formData.isActive,
       };
 
       if (editingEmployee) {
@@ -221,14 +246,40 @@ export function EmployeeManagement() {
     }
   };
 
-  const openSalaryDialog = (employee: Employee) => {
+  const checkSalaryStatus = async (
+    employeeId: string,
+    month: number,
+    year: number
+  ) => {
+    try {
+      const status = await employeesAPI.getSalaryStatus(
+        employeeId,
+        month,
+        year
+      );
+      setSalaryStatus(status);
+      return status;
+    } catch (error) {
+      console.error("Error checking salary status:", error);
+      setSalaryStatus(null);
+      return null;
+    }
+  };
+
+  const openSalaryDialog = async (employee: Employee) => {
     setProcessingEmployee(employee);
+    const currentMonth = new Date().getMonth() + 1;
+    const currentYear = new Date().getFullYear();
+
     setSalaryFormData({
-      month: new Date().getMonth() + 1,
-      year: new Date().getFullYear(),
+      month: currentMonth,
+      year: currentYear,
       caisseId: "",
       addToVirtualCaisse: false,
     });
+
+    // Check salary status for current month/year
+    await checkSalaryStatus(employee.id, currentMonth, currentYear);
     setSalaryDialogOpen(true);
   };
 
@@ -245,10 +296,11 @@ export function EmployeeManagement() {
           addToVirtualCaisse: salaryFormData.addToVirtualCaisse,
         }
       );
-      
+
       toast.success("Salaire traité avec succès");
       setSalaryDialogOpen(false);
       setProcessingEmployee(null);
+      setSalaryStatus(null);
       loadEmployees();
     } catch (error) {
       console.error("Error processing salary:", error);
@@ -302,6 +354,43 @@ export function EmployeeManagement() {
                     setFormData({ ...formData, fullName: e.target.value })
                   }
                   placeholder="Nom complet de l'employé"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                  placeholder="email@example.com"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="department">Département</Label>
+                <Input
+                  id="department"
+                  value={formData.department}
+                  onChange={(e) =>
+                    setFormData({ ...formData, department: e.target.value })
+                  }
+                  placeholder="Département"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="hireDate">Date d'embauche</Label>
+                <Input
+                  id="hireDate"
+                  type="date"
+                  value={formData.hireDate}
+                  onChange={(e) =>
+                    setFormData({ ...formData, hireDate: e.target.value })
+                  }
                 />
               </div>
 
@@ -374,6 +463,17 @@ export function EmployeeManagement() {
                 />
               </div>
 
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="isActive"
+                  checked={formData.isActive}
+                  onCheckedChange={(checked) =>
+                    setFormData({ ...formData, isActive: checked as boolean })
+                  }
+                />
+                <Label htmlFor="isActive">Employé actif</Label>
+              </div>
+
               <div className="flex justify-end gap-2">
                 <Button
                   type="button"
@@ -416,6 +516,34 @@ export function EmployeeManagement() {
                         </Badge>
                       </div>
                       <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="font-semibold">Email:</span>{" "}
+                          {employee.email || "Non spécifié"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Département:</span>{" "}
+                          {employee.department || "Non spécifié"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">
+                            Date d'embauche:
+                          </span>{" "}
+                          {employee.hireDate
+                            ? new Date(employee.hireDate).toLocaleDateString()
+                            : "Non spécifiée"}
+                        </div>
+                        <div>
+                          <span className="font-semibold">Statut:</span>{" "}
+                          <span
+                            className={`px-2 py-1 rounded text-xs ${
+                              employee.isActive
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {employee.isActive ? "Actif" : "Inactif"}
+                          </span>
+                        </div>
                         <div>
                           <span className="font-semibold">Salaire:</span>{" "}
                           {employee.salaryAmount.toLocaleString()} MAD
@@ -501,45 +629,109 @@ export function EmployeeManagement() {
               Traiter le salaire - {processingEmployee?.fullName}
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4">
+            {/* Salary Status Display */}
+            {salaryStatus && (
+              <div
+                className={`p-3 rounded-md ${
+                  salaryStatus.isProcessed
+                    ? "bg-yellow-50 border border-yellow-200"
+                    : "bg-green-50 border border-green-200"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`w-3 h-3 rounded-full ${
+                      salaryStatus.isProcessed
+                        ? "bg-yellow-500"
+                        : "bg-green-500"
+                    }`}
+                  ></div>
+                  <span className="font-medium">
+                    {salaryStatus.isProcessed
+                      ? `Salaire déjà traité pour ${salaryStatus.month}/${salaryStatus.year}`
+                      : `Salaire non traité pour ${salaryStatus.month}/${salaryStatus.year}`}
+                  </span>
+                </div>
+                {salaryStatus.salaryPayment && (
+                  <div className="mt-2 text-sm text-gray-600">
+                    <p>
+                      Montant:{" "}
+                      {salaryStatus.salaryPayment.totalAmount.toLocaleString()}{" "}
+                      MAD
+                    </p>
+                    <p>
+                      Traité le:{" "}
+                      {new Date(
+                        salaryStatus.salaryPayment.createdAt
+                      ).toLocaleDateString()}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="month">Mois</Label>
                 <Select
                   value={salaryFormData.month.toString()}
-                  onValueChange={(value) =>
+                  onValueChange={async (value) => {
+                    const newMonth = parseInt(value);
                     setSalaryFormData({
                       ...salaryFormData,
-                      month: parseInt(value),
-                    })
-                  }
+                      month: newMonth,
+                    });
+                    // Check salary status for new month/year
+                    if (processingEmployee) {
+                      await checkSalaryStatus(
+                        processingEmployee.id,
+                        newMonth,
+                        salaryFormData.year
+                      );
+                    }
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
-                      <SelectItem key={month} value={month.toString()}>
-                        {new Date(2024, month - 1).toLocaleDateString('fr-FR', { month: 'long' })}
-                      </SelectItem>
-                    ))}
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map(
+                      (month) => (
+                        <SelectItem key={month} value={month.toString()}>
+                          {new Date(2024, month - 1).toLocaleDateString(
+                            "fr-FR",
+                            { month: "long" }
+                          )}
+                        </SelectItem>
+                      )
+                    )}
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div>
                 <Label htmlFor="year">Année</Label>
                 <Input
                   id="year"
                   type="number"
                   value={salaryFormData.year}
-                  onChange={(e) =>
+                  onChange={async (e) => {
+                    const newYear = parseInt(e.target.value);
                     setSalaryFormData({
                       ...salaryFormData,
-                      year: parseInt(e.target.value),
-                    })
-                  }
+                      year: newYear,
+                    });
+                    // Check salary status for new month/year
+                    if (processingEmployee) {
+                      await checkSalaryStatus(
+                        processingEmployee.id,
+                        salaryFormData.month,
+                        newYear
+                      );
+                    }
+                  }}
                   min={2020}
                   max={2030}
                 />
@@ -562,10 +754,11 @@ export function EmployeeManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   {caisses
-                    .filter((caisse) => caisse.type !== 'VIRTUAL')
+                    .filter((caisse) => caisse.type !== "VIRTUAL")
                     .map((caisse) => (
                       <SelectItem key={caisse.id} value={caisse.id}>
-                        {caisse.name} ({caisse.type === 'CASH' ? 'Cash' : 'Compte Bancaire'})
+                        {caisse.name} (
+                        {caisse.type === "CASH" ? "Cash" : "Compte Bancaire"})
                       </SelectItem>
                     ))}
                 </SelectContent>
@@ -589,9 +782,18 @@ export function EmployeeManagement() {
             </div>
 
             <div className="text-sm text-muted-foreground">
-              <p>• Si aucune caisse n'est sélectionnée, la caisse par défaut sera utilisée</p>
-              <p>• La transaction sera créée avec le statut "En attente" pour approbation</p>
-              <p>• Vous pouvez toujours ajouter la transaction à la caisse virtuelle</p>
+              <p>
+                • Si aucune caisse n'est sélectionnée, la caisse par défaut sera
+                utilisée
+              </p>
+              <p>
+                • La transaction sera créée avec le statut "En attente" pour
+                approbation
+              </p>
+              <p>
+                • Vous pouvez toujours ajouter la transaction à la caisse
+                virtuelle
+              </p>
             </div>
           </div>
 
@@ -602,12 +804,21 @@ export function EmployeeManagement() {
               onClick={() => {
                 setSalaryDialogOpen(false);
                 setProcessingEmployee(null);
+                setSalaryStatus(null);
               }}
             >
               Annuler
             </Button>
-            <Button onClick={handleProcessSalary}>
-              Traiter le Salaire
+            <Button
+              onClick={handleProcessSalary}
+              disabled={salaryStatus?.isProcessed}
+              className={
+                salaryStatus?.isProcessed ? "opacity-50 cursor-not-allowed" : ""
+              }
+            >
+              {salaryStatus?.isProcessed
+                ? "Salaire Déjà Traité"
+                : "Traiter le Salaire"}
             </Button>
           </div>
         </DialogContent>
