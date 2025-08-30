@@ -221,11 +221,12 @@ export function DossiersManagementTab() {
                     <SelectValue placeholder="Sélectionner un client" />
                   </SelectTrigger>
                   <SelectContent>
-                    {clients.map((client) => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.fullName}
-                      </SelectItem>
-                    ))}
+                    {Array.isArray(clients) &&
+                      clients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.fullName}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -288,7 +289,7 @@ export function DossiersManagementTab() {
               <SelectValue placeholder="Filtrer par statut" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Tous les statuts</SelectItem>
+              <SelectItem value="none">Tous les statuts</SelectItem>
               <SelectItem value="EN_COURS">En cours</SelectItem>
               <SelectItem value="TERMINE">Terminé</SelectItem>
               <SelectItem value="ANNULE">Annulé</SelectItem>

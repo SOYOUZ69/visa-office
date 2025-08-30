@@ -184,7 +184,8 @@ export function AttendanceCalendar() {
     while (currentDateObj <= endDate) {
       const dateString = currentDateObj.toISOString().split("T")[0];
       const attendance = attendanceRecords.find(
-        (record) => record.date === dateString
+        (record) =>
+          new Date(record.date).toISOString().split("T")[0] === dateString
       );
 
       days.push({
@@ -361,10 +362,11 @@ export function AttendanceCalendar() {
                 ))}
 
                 {/* Calendar days */}
-                {calendarDays.map((day, index) => (
-                  <div
-                    key={index}
-                    className={`
+                {calendarDays.map((day, index) => {
+                  return (
+                    <div
+                      key={index}
+                      className={`
                        p-2 min-h-[60px] border rounded cursor-pointer transition-colors
                        ${
                          !day.isCurrentMonth
@@ -379,29 +381,30 @@ export function AttendanceCalendar() {
                            : ""
                        }
                      `}
-                    onClick={() => handleDayClick(day)}
-                    title={
-                      day.attendance
-                        ? `${day.attendance.date}: ${getStatusLabel(
-                            day.attendance.status
-                          )}${
-                            day.attendance.reason
-                              ? ` - ${day.attendance.reason}`
-                              : ""
-                          }`
-                        : `${day.date.toLocaleDateString()}: Aucune donnée`
-                    }
-                  >
-                    <div className="text-sm font-medium mb-1">
-                      {day.dayOfMonth}
-                    </div>
-                    {day.attendance && (
-                      <div className="flex items-center justify-center">
-                        {getStatusIcon(day.attendance.status)}
+                      onClick={() => handleDayClick(day)}
+                      title={
+                        day.attendance
+                          ? `${day.attendance.date}: ${getStatusLabel(
+                              day.attendance.status
+                            )}${
+                              day.attendance.reason
+                                ? ` - ${day.attendance.reason}`
+                                : ""
+                            }`
+                          : `${day.date.toLocaleDateString()}: Aucune donnée`
+                      }
+                    >
+                      <div className="text-sm font-medium mb-1">
+                        {day.dayOfMonth}
                       </div>
-                    )}
-                  </div>
-                ))}
+                      {day.attendance && (
+                        <div className="flex items-center justify-center">
+                          {getStatusIcon(day.attendance.status)}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
