@@ -1,3 +1,4 @@
+import { EstimationPayload } from "@/types";
 import axios from "axios";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -599,6 +600,28 @@ export const adminAPI = {
   },
   initializeSystem: async () => {
     const response = await api.post("/api/v1/admin/initialize-system");
+    return response.data;
+  },
+};
+export const AiMicroServiceAPI = {
+  getServices: async () => {
+    const response = await api.get("/api/v1/ai-service/services");
+    return response.data;
+  },
+  getCountries: async () => {
+    const response = await api.get("/api/v1/ai-service/countries");
+    return response.data;
+  },
+  getTransactions: async () => {
+    const response = await api.get("/api/v1/ai-service/transactions");
+    return response.data;
+  },
+  getAnnualGoal: async () => {
+    const response = await api.get("/api/v1/ai-service/annual-goal");
+    return response.data;
+  },
+  estimateCost: async (payload: EstimationPayload) => {
+    const response = await api.get("/api/v1/ai-service/transactions");
     return response.data;
   },
 };

@@ -395,3 +395,8 @@ export interface Transaction {
   employeeId?: string;
   employee?: Employee;
 }
+export interface EstimationPayload {
+  country: string;
+  quantity: number;
+  selected_services: string[];
+}
