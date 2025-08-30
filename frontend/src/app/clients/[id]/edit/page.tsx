@@ -1,15 +1,21 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { Layout } from '@/components/Layout';
-import { ClientForm } from '@/components/clients/ClientForm';
-import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { clientsAPI } from '@/lib/api';
-import { Client } from '@/types';
-import { toast } from 'sonner';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { Layout } from "@/components/Layout";
+import { ClientForm } from "@/components/clients/ClientForm";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { clientsAPI } from "@/lib/api";
+import { Client } from "@/types";
+import { toast } from "sonner";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 export default function EditClientPage() {
   const params = useParams();
@@ -31,8 +37,8 @@ export default function EditClientPage() {
       const clientData = await clientsAPI.getById(clientId);
       setClient(clientData);
     } catch (error) {
-      toast.error('Failed to load client data');
-      router.push('/clients');
+      toast.error("Failed to load client data");
+      router.push("/clients");
     } finally {
       setLoading(false);
     }
@@ -89,19 +95,19 @@ export default function EditClientPage() {
     <ProtectedRoute>
       <Layout>
         <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Edit Client</h1>
-          <p className="text-gray-600">
-            Update client information for {client.fullName}
-          </p>
-        </div>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Edit Client</h1>
+            <p className="text-gray-600">
+              Update client information for {client.fullName}
+            </p>
+          </div>
 
-        <ClientForm 
-          clientType={client.clientType} 
-          client={client} 
-          isEdit={true} 
-        />
-      </div>
+          <ClientForm
+            clientType={client.clientType}
+            client={client}
+            isEdit={true}
+          />
+        </div>
       </Layout>
     </ProtectedRoute>
   );

@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CostPredictionCard } from "@/components/clients/servicesSection/CostPredictionCard";
 import {
   Select,
   SelectContent,
@@ -28,18 +29,63 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { servicesAPI, metaAPI } from "@/lib/api";
+import { servicesAPI, metaAPI, AiMicroServiceAPI } from "@/lib/api";
 import { ServiceItem, CreateServiceData } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Plus, Save, Trash2, Edit, X } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import useSWR, { mutate } from "swr";
-
+import { MultiSelect } from "../ui/multi-select";
+const servicesSpec = [
+  "Rembourcement Frais d'extraits de Marriage",
+  "Rembourcement Frais d'extraits de naissance",
+  "Remboursement Frais de commision de virement",
+  "Remboursement Frais de extraction de B3",
+  "Remboursement Frais de legalisation ( embassade d'Egypte)",
+  "Remboursement Frais de legalisation ( Ministère des Affaires étrangères)",
+  "Remboursement Frais de Photocopies ( couleur)",
+  "Remboursement Frais de Photocopies ( NB)",
+  'Remboursement Frais de Timbre Fiscale "Examens"',
+  "Remboursement Frais de Transport ( circuit Ambassade/TLS/Ministères)",
+  "Remboursement Frais de Transport ( Ksibet Mediouni-Tunis)",
+  "Remboursement Frais de TVA sur commission de virement",
+  "Remboursement Frais de legalisation ( Embassade d'Allmengne)",
+  "Remboursement Frais de prise rendez-vous",
+  "Remboursement Frais de prise rendez-vous (TLS France)",
+  "Remboursement Frais d'Assurance",
+  "Remboursement Frais de prise rendez-vous (TLS Allemagne)",
+];
+const countries = [
+  "Albania",
+  "Armenia",
+  "Belgium",
+  "Czech",
+  "Egypt",
+  "Estonia",
+  "France",
+  "Germany",
+  "Greece",
+  "Iceland",
+  "Italy",
+  "Malta",
+  "Netherlands",
+  "Poland",
+  "Portugal",
+  "Romania",
+  "Switzerland",
+  "Taiwan",
+  "Turkey",
+  "Usa",
+];
 const ServiceRowSchema = z.object({
   serviceType: z.string().min(1, "Service type is required"),
   quantity: z.coerce.number().int().min(1, "Quantity must be at least 1"),
   unitPrice: z.coerce.number().min(0, "Unit price must be at least 0"),
+  country: z.string().min(1, "Country is required"),
+  selectedServices: z
+    .array(z.string())
+    .min(1, "At least one service is required"),
 });
 
 const ServicesFormSchema = z.object({
@@ -64,7 +110,8 @@ export function ServicesSection({
   isNewClient = false,
 }: ServicesSectionProps) {
   const [serviceTypes, setServiceTypes] = useState<string[]>([]);
-
+  const [countries, setCountries] = useState<string[]>([]);
+  const [servicesSpec, setServicesSpec] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [priceLoadingStates, setPriceLoadingStates] = useState<{
     [key: number]: boolean;
@@ -85,6 +132,36 @@ export function ServicesSection({
       revalidateOnFocus: false,
     }
   );
+
+  useEffect(() => {
+    // Load service types only once
+    const loadCountries = async () => {
+      try {
+        const typesData = await AiMicroServiceAPI.getCountries();
+        setCountries(typesData);
+      } catch (error) {
+        console.error("Failed to load service types:", error);
+        toast.error("Failed to load service types");
+      }
+    };
+
+    loadCountries();
+  }, []);
+
+  useEffect(() => {
+    // Load service types only once
+    const loadServicesSpec = async () => {
+      try {
+        const typesData = await AiMicroServiceAPI.getServices();
+        setServicesSpec(typesData);
+      } catch (error) {
+        console.error("Failed to load services spec:", error);
+        toast.error("Failed to load services spec");
+      }
+    };
+
+    loadServicesSpec();
+  }, []);
 
   // Helper function to invalidate relevant caches
   const invalidateRelatedCaches = () => {
@@ -109,7 +186,9 @@ export function ServicesSection({
     control: form.control,
     name: "services",
   });
-
+  const handleCountryChange = (value: string, index: number) => {
+    form.setValue(`services.${index}.country`, value);
+  };
   const isAdmin = user?.roleName === "Admin";
 
   useEffect(() => {
@@ -193,6 +272,8 @@ export function ServicesSection({
       serviceType: "",
       quantity: 1,
       unitPrice: 0,
+      country: "",
+      selectedServices: [],
     });
     // Reset states for new row
     setPrefilledPrices((prev) => ({ ...prev, [newIndex]: false }));
@@ -250,6 +331,8 @@ export function ServicesSection({
       serviceType: serviceData.serviceType,
       quantity: Number(serviceData.quantity),
       unitPrice: Number(serviceData.unitPrice),
+      country: serviceData.country,
+      selectedServices: serviceData.selectedServices,
     };
 
     try {
@@ -433,6 +516,23 @@ export function ServicesSection({
                     </div>
 
                     <div className="col-span-2">
+                      <MultiSelect
+                        options={servicesSpec.map((service) => ({
+                          value: service,
+                          label: service,
+                        }))}
+                        selectedValues={
+                          form.watch(`services.${index}.selectedServices`) || []
+                        }
+                        onChange={(values) =>
+                          form.setValue(
+                            `services.${index}.selectedServices`,
+                            values
+                          )
+                        }
+                      />
+                    </div>
+                    <div className="col-span-2">
                       <Input
                         type="number"
                         placeholder="Qty"
@@ -453,7 +553,7 @@ export function ServicesSection({
                     <div className="col-span-2">
                       <div className="relative">
                         <Input
-                          type="number"
+                          type="text"
                           placeholder="Unit Price"
                           min="0"
                           step="0.01"
@@ -490,7 +590,26 @@ export function ServicesSection({
                         </p>
                       )}
                     </div>
-
+                    <div className="col-span-3">
+                      <Select
+                        value={form.watch(`services.${index}.country`)}
+                        disabled={saving}
+                        onValueChange={(value) =>
+                          handleCountryChange(value, index)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Country" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {countries.map((country) => (
+                            <SelectItem key={country} value={country}>
+                              {country}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div className="col-span-2">
                       <Input
                         type="text"
@@ -503,7 +622,6 @@ export function ServicesSection({
                         className="bg-gray-50"
                       />
                     </div>
-
                     <div className="col-span-2 flex space-x-2">
                       <Button
                         type="button"
@@ -523,6 +641,14 @@ export function ServicesSection({
                       >
                         <X className="h-4 w-4" />
                       </Button>
+
+                      <CostPredictionCard
+                        serviceSpec={form.watch(
+                          `services.${index}.selectedServices`
+                        )}
+                        country={form.watch(`services.${index}.country`)}
+                        quantity={form.watch(`services.${index}.quantity`)}
+                      />
                     </div>
                   </div>
                 ))}
@@ -556,7 +682,9 @@ export function ServicesSection({
                   <TableHead>Unit Price</TableHead>
                   <TableHead>Subtotal</TableHead>
                   <TableHead>Created</TableHead>
-                  {isAdmin && <TableHead>Actions</TableHead>}
+                  {/* {isAdmin && */}
+                  <TableHead>Actions</TableHead>
+                  {/* } */}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -571,17 +699,17 @@ export function ServicesSection({
                     <TableCell>
                       {new Date(service.createdAt).toLocaleDateString()}
                     </TableCell>
-                    {isAdmin && (
-                      <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => deleteService(service.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    )}
+                    {/* {isAdmin && ( */}
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => deleteService(service.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                    {/* )} */}
                   </TableRow>
                 ))}
               </TableBody>

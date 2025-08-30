@@ -1,40 +1,46 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
-import { Users, User, Phone, Building2 } from 'lucide-react';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { Users, User, Phone, Building2 } from "lucide-react";
 
 const clientTypes = [
   {
-    id: 'INDIVIDUAL',
-    name: 'Individual',
-    description: 'Single person visa application',
+    id: "INDIVIDUAL",
+    name: "Individual",
+    description: "Single person visa application",
     icon: User,
-    color: 'bg-blue-500',
+    color: "bg-blue-500",
   },
   {
-    id: 'FAMILY',
-    name: 'Family',
-    description: 'Family visa application',
+    id: "FAMILY",
+    name: "Family",
+    description: "Family visa application",
     icon: Users,
-    color: 'bg-green-500',
+    color: "bg-green-500",
   },
   {
-    id: 'GROUP',
-    name: 'Group',
-    description: 'Group visa application',
+    id: "GROUP",
+    name: "Group",
+    description: "Group visa application",
     icon: Building2,
-    color: 'bg-purple-500',
+    color: "bg-purple-500",
   },
   {
-    id: 'PHONE_CALL',
-    name: 'Phone Call',
-    description: 'Phone call inquiry',
+    id: "PHONE_CALL",
+    name: "Phone Call",
+    description: "Phone call inquiry",
     icon: Phone,
-    color: 'bg-orange-500',
+    color: "bg-orange-500",
   },
 ];
 
@@ -65,7 +71,9 @@ export function NewClientTab() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold text-gray-900">Select Client Type</h2>
+        <h2 className="text-2xl font-semibold text-gray-900">
+          Select Client Type
+        </h2>
         <p className="text-gray-600">
           Choose the type of client you want to create
         </p>

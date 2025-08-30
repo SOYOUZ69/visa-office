@@ -1,38 +1,52 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { InfoTooltip } from "./InfoTooltip";
+import { AiMicroServiceAPI } from "@/lib/api";
 
-const costPredictionCard = () => {
-  const [costPrediction, setCostPrediction] = useState("$150 - $200");
-  const [estimatedProfit, setEstimatedProfit] = useState("$75 - $100");
-
+export const CostPredictionCard = ({
+  serviceSpec,
+  country,
+  quantity,
+}: {
+  serviceSpec: string[];
+  country: string;
+  quantity: number;
+}) => {
+  const [costPrediction, setCostPrediction] = useState("N/A");
+  const [minimalPaymentReq, setMinimalPaymentReq] = useState("N/A");
+  const [AIResponse, setAIResponse] = useState({
+    base_cost: 12.55,
+    ai_cost: 185.59156900351712,
+    recommended_cost: 185.59156900351712,
+    minimal_payment_30pct: 241.26903970457226,
+  });
+  const loadAiResponse = async () => {
+    const response = await AiMicroServiceAPI.estimateCost({
+      country,
+      quantity,
+      selectedServices: serviceSpec,
+    });
+    setAIResponse(response);
+    setCostPrediction(response.recommended_cost.toString());
+    setMinimalPaymentReq(response.minimal_payment_30pct.toString());
+  };
+  useEffect(() => {
+    loadAiResponse();
+  }, [serviceSpec, country, quantity]);
   return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="max-w-md mx-auto space-y-8">
-        <h1 className="text-2xl font-semibold text-foreground">
-          Service Information
-        </h1>
-
-        <div className="flex items-center gap-2">
-          <span className="text-foreground">Service Details</span>
-          <InfoTooltip
-            costPrediction={costPrediction}
-            estimatedProfit={estimatedProfit}
-            onConfirm={(isCorrect) => {
-              console.log("User confirmed:", isCorrect ? "Yes" : "No");
-            }}
-            onValuesUpdate={(newCost, newProfit) => {
-              setCostPrediction(newCost);
-              setEstimatedProfit(newProfit);
-              console.log("Values updated:", {
-                cost: newCost,
-                profit: newProfit,
-              });
-            }}
-          />
-        </div>
-      </div>
-    </div>
+    <InfoTooltip
+      costPrediction={costPrediction}
+      estimatedProfit={minimalPaymentReq}
+      onConfirm={(isCorrect) => {
+        console.log("User confirmed:", isCorrect ? "Yes" : "No");
+      }}
+      onValuesUpdate={(newCost, newProfit) => {
+        setCostPrediction(newCost);
+        setMinimalPaymentReq(newProfit);
+        console.log("Values updated:", {
+          cost: newCost,
+          profit: newProfit,
+        });
+      }}
+    />
   );
 };
-
-export default costPredictionCard;

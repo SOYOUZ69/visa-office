@@ -79,7 +79,7 @@ export function InfoTooltip({
                 </div>
                 <div>
                   <p className="text-sm font-medium text-foreground">
-                    Estimated Profit
+                    Minimum Payment for 30% profit
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {estimatedProfit}
