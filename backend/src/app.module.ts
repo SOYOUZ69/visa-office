@@ -14,6 +14,7 @@ import { EmployeeModule } from './employee/employee.module';
 import { DossiersModule } from './dossiers/dossiers.module';
 import { RolesModule } from './roles/roles.module';
 import { AdminModule } from './admin/admin.module';
+import { AiServiceModule } from './aiservice/aiservice.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { AdminModule } from './admin/admin.module';
     FinancialModule,
     EmployeeModule,
     DossiersModule,
+    AiServiceModule,
   ],
   controllers: [AppController],
   providers: [AppService],
