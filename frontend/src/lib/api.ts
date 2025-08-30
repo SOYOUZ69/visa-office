@@ -1,4 +1,3 @@
-import { EstimationPayload } from "@/types";
 import axios from "axios";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -620,8 +619,12 @@ export const AiMicroServiceAPI = {
     const response = await api.get("/api/v1/ai-service/annual-goal");
     return response.data;
   },
-  estimateCost: async (payload: EstimationPayload) => {
-    const response = await api.get("/api/v1/ai-service/transactions");
+  estimateCost: async (payload: {
+    country: string;
+    quantity: number;
+    selectedServices: string[];
+  }) => {
+    const response = await api.post("/api/v1/ai-service/estimate", payload);
     return response.data;
   },
 };
