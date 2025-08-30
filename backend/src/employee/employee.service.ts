@@ -1,4 +1,3 @@
-import { paymentsAPI } from './../../../frontend/src/lib/api';
 import {
   Injectable,
   NotFoundException,
